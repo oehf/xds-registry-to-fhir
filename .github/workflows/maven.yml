@@ -29,4 +29,6 @@ jobs:
         cache: maven
     - name: Build with Maven
       run: mvn -B package --file pom.xml
+    - name: Integration Tests with Maven
+      run: mvn failsafe:integration-test -Pit-tests --file pom.xml
 
