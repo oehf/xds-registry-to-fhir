@@ -1,0 +1,21 @@
+<xds:documentEntry xmlns:xds="http://www.openehealth.org/ipf/xds" xmlns:ns4="urn:ihe:iti:xds-b:2007" xmlns:ns3="urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0">
+    <xds:entryUuid>document01</xds:entryUuid>
+    <xds:uniqueId>32848902348</xds:uniqueId>
+    <xds:patientId extension="123" root="2.999.3.4"/>
+    <xds:availabilityStatus>Approved</xds:availabilityStatus>
+    <xds:limitedMetadata>false</xds:limitedMetadata>
+    <xds:sourcePatientId extension="source" root="4.1"/>
+    <xds:creationTime dateTime="1981-01-01T00:00:00Z" precision="YEAR"/>
+    <xds:classCode code="code2" codeSystemName="scheme2" displayName="code2"/>
+    <xds:confidentialityCode code="code8" codeSystemName="scheme8" displayName="code8"/>
+    <xds:formatCode code="code3" codeSystemName="scheme3" displayName="code3"/>
+    <xds:healthcareFacilityTypeCode code="code4" codeSystemName="scheme4" displayName="code4"/>
+    <xds:languageCode>en-US</xds:languageCode>
+    <xds:practiceSettingCode code="code5" codeSystemName="scheme5" displayName="code5"/>
+    <xds:typeCode code="code6" codeSystemName="scheme6" displayName="code6"/>
+    <xds:repositoryUniqueId>1.2.3.4</xds:repositoryUniqueId>
+    <xds:mimeType>application/octet-stream</xds:mimeType>
+    <xds:size>123</xds:size>
+    <xds:hash>1234567890123456789012345678901234567890</xds:hash>
+    <xds:type>stable</xds:type>
+</xds:documentEntry>
