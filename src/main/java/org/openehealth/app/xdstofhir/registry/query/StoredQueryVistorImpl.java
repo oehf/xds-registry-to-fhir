@@ -13,8 +13,10 @@ import ca.uhn.fhir.rest.gclient.IQuery;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
 import lombok.Getter;
 import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FetchQuery;
@@ -69,6 +71,12 @@ public class StoredQueryVistorImpl implements Visitor {
         map(query.getPracticeSettingCodes(),DocumentReference.SETTING);
         map(query.getHealthcareFacilityTypeCodes(),DocumentReference.FACILITY);
         map(query.getFormatCodes(),DocumentReference.FORMAT);
+        List<String> fhirStatus = query.getStatus().stream()
+                .map(status -> MappingSupport.STATUS_MAPPING_FROM_XDS.get(status))
+                .map(DocumentReferenceStatus::toCode)
+                .collect(Collectors.toList());
+        if (!fhirStatus.isEmpty())
+            fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
     }
 
     @Override
@@ -86,11 +94,11 @@ public class StoredQueryVistorImpl implements Visitor {
     }
 
     private void map(List<Code> codes, TokenClientParam param) {
-        if (codes != null) {
-            codes.forEach(code -> {
-                var codeCriteria = param.exactly().systemAndCode(toUrnCoded(code.getSchemeName()), code.getCode());
-                fhirQuery.where(codeCriteria);
-            });
+        if (codes != null && !codes.isEmpty()) {
+            fhirQuery.where(param.exactly()
+                    .codings(codes.stream()
+                            .map(xdsCode -> new Coding(toUrnCoded(xdsCode.getSchemeName()), xdsCode.getCode(), null))
+                            .collect(Collectors.toList()).toArray(new Coding[0])));
         }
     }
 

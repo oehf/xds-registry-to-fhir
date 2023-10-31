@@ -9,9 +9,11 @@ import java.util.stream.Collectors;
 
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import lombok.experimental.UtilityClass;
+import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.Oid;
 import org.openehealth.ipf.commons.core.URN;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp.Precision;
 
 @UtilityClass
@@ -24,12 +26,19 @@ public class MappingSupport {
 
     public static final Map<Precision, TemporalPrecisionEnum> PRECISION_MAP_FROM_XDS = new EnumMap<>(
             Map.of(Precision.DAY, TemporalPrecisionEnum.DAY,
-                    Precision.HOUR, TemporalPrecisionEnum.MINUTE,
-                    Precision.MINUTE, TemporalPrecisionEnum.MINUTE,
+                    Precision.HOUR, TemporalPrecisionEnum.SECOND,
+                    Precision.MINUTE, TemporalPrecisionEnum.SECOND,
                     Precision.MONTH, TemporalPrecisionEnum.MONTH,
                     Precision.SECOND, TemporalPrecisionEnum.SECOND,
                     Precision.YEAR, TemporalPrecisionEnum.YEAR));
     public static final Map<TemporalPrecisionEnum, Precision> PRECISION_MAP_FROM_FHIR = PRECISION_MAP_FROM_XDS
+            .entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (x, y) -> y, LinkedHashMap::new));
+
+    public static final Map<AvailabilityStatus, DocumentReferenceStatus> STATUS_MAPPING_FROM_XDS = new EnumMap<>(
+            Map.of(AvailabilityStatus.APPROVED, DocumentReferenceStatus.CURRENT,
+                    AvailabilityStatus.DEPRECATED, DocumentReferenceStatus.SUPERSEDED));
+    public static final Map<DocumentReferenceStatus, AvailabilityStatus> STATUS_MAPPING_FROM_FHIR = STATUS_MAPPING_FROM_XDS
             .entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (x, y) -> y, LinkedHashMap::new));
 

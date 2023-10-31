@@ -3,6 +3,7 @@ package org.openehealth.app.xdstofhir.registry.query;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ObjectReference;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Version;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.QueryRegistry;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryReturnType;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.ErrorCode;
@@ -31,6 +33,7 @@ public class StoredQueryProcessor implements Iti18Service {
     private int maxResultCount;
     private final IGenericClient client;
     private final Function<DocumentReference, DocumentEntry> documentMapper;
+    private static final Version DEFAULT_VERSION = new Version("1");
 
     @Override
     public QueryResponse processQuery(QueryRegistry query) {
@@ -71,7 +74,20 @@ public class StoredQueryProcessor implements Iti18Service {
                 .map(documentMapper)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+        xdsDocuments.forEach(assignDefaultVersioning());
         return xdsDocuments;
+    }
+
+    /**
+     * ebRIM chapter 2.5.1 requires versionInfo and lid to be set.
+     *
+     * @return consumer setting proper defaults for lid and versionInfo
+     */
+    private Consumer<? super DocumentEntry> assignDefaultVersioning() {
+        return doc -> {
+          doc.setLogicalUuid(doc.getEntryUuid());
+          doc.setVersion(DEFAULT_VERSION);
+        };
     }
 
 }

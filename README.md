@@ -13,9 +13,12 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 * Implementation try to stay as simple as possible to allow a blueprint (Design Principles DRY and KISS)
 
 ## Features
-* [ITI-42](https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html) to register documents to the registry
-* [ITI-18](https://profiles.ihe.net/ITI/TF/Volume2/ITI-18.html) to query documents from the registry
-* [ITI-8](https://profiles.ihe.net/ITI/TF/Volume2/ITI-8.html) to receive a patient-identity-feed and make sure the patient exists
+* [ITI-42](https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html) to register documents to the registry  
+(default endpoint: http://localhost:8081/services/registry/iti42)
+* [ITI-18](https://profiles.ihe.net/ITI/TF/Volume2/ITI-18.html) to query documents from the registry  
+(default endpoint: http://localhost:8081/services/registry/iti18)
+* [ITI-8](https://profiles.ihe.net/ITI/TF/Volume2/ITI-8.html) to receive a patient-identity-feed and make sure the patient exists  
+(default endpoint: MLLP Port 2575)
 
 ## Build and run
 

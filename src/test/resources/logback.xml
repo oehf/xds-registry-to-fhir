@@ -4,5 +4,6 @@
 	<logger name="org.springframework.web" level="WARN"/>
 	<logger name="org.apache.cxf" level="INFO"/>
 	<logger name="ca.uhn.fhir.rest.client.interceptor" level="DEBUG" />
+	<logger name="org.openehealth.app.xdstofhir.registry" level="DEBUG" />
 	<root level="warn" />
 </configuration>

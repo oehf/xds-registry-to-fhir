@@ -160,8 +160,10 @@ public class XdsToFhirDocumentMapper implements Function<DocumentEntry, Document
         var role = new PractitionerRole();
         var doc = new Practitioner();
         if(!author.getAuthorPerson().isEmpty()) {
-            doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));
-            doc.addIdentifier(fromIdentifier(author.getAuthorPerson().getId()));
+            if (!author.getAuthorPerson().getName().isEmpty())
+                doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));
+            if (!author.getAuthorPerson().getId().isEmpty())
+                doc.addIdentifier(fromIdentifier(author.getAuthorPerson().getId()));
         }
         doc.setTelecom(author.getAuthorTelecom().stream().map(this::fromTelecom).collect(Collectors.toList()));
         var reference = new Reference();
