@@ -5,10 +5,12 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_U
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
+import ca.uhn.fhir.rest.gclient.DateClientParam;
 import ca.uhn.fhir.rest.gclient.IQuery;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
 import lombok.Getter;
@@ -18,7 +20,10 @@ import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.ReferenceId;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.TimeRange;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FetchQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDispensesQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByReferenceIdQuery;
@@ -45,6 +50,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetRelatedDocumen
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetAndContentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.Query.Visitor;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryList;
 
 public class StoredQueryVistorImpl implements Visitor {
     @Getter
@@ -71,12 +77,13 @@ public class StoredQueryVistorImpl implements Visitor {
         map(query.getPracticeSettingCodes(),DocumentReference.SETTING);
         map(query.getHealthcareFacilityTypeCodes(),DocumentReference.FACILITY);
         map(query.getFormatCodes(),DocumentReference.FORMAT);
-        List<String> fhirStatus = query.getStatus().stream()
-                .map(status -> MappingSupport.STATUS_MAPPING_FROM_XDS.get(status))
-                .map(DocumentReferenceStatus::toCode)
-                .collect(Collectors.toList());
-        if (!fhirStatus.isEmpty())
-            fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
+        map(query.getStatus());
+        map(query.getEventCodes(), DocumentReference.EVENT);
+        map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL);
+        map(query.getCreationTime(), DocumentReference.DATE);
+        map(query.getServiceStartTime(), DocumentReference.PERIOD);
+        map(query.getServiceStopTime(), DocumentReference.PERIOD);
+        //TODO: author
     }
 
     @Override
@@ -91,6 +98,32 @@ public class StoredQueryVistorImpl implements Visitor {
         var identifier = DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN,
                 searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList()));
         fhirQuery.where(identifier);
+    }
+
+
+    private void map(TimeRange dateRange, DateClientParam date) {
+        if (dateRange != null) {
+            if (dateRange.getFrom() != null) {
+                fhirQuery.where(date.afterOrEquals().millis(Date.from(dateRange.getFrom().getDateTime().toInstant())));
+            }
+            if (dateRange.getTo() != null) {
+                fhirQuery.where(date.before().millis(Date.from(dateRange.getTo().getDateTime().toInstant())));
+            }
+        }
+    }
+
+    private void map(List<AvailabilityStatus> status) {
+        List<String> fhirStatus = status.stream()
+                .map(MappingSupport.STATUS_MAPPING_FROM_XDS::get)
+                .map(DocumentReferenceStatus::toCode)
+                .collect(Collectors.toList());
+        if (!fhirStatus.isEmpty())
+            fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
+    }
+
+    private void map (QueryList<Code> codes, TokenClientParam param) {
+        if (codes != null)
+            codes.getOuterList().forEach(eventList -> map(eventList, param));
     }
 
     private void map(List<Code> codes, TokenClientParam param) {
@@ -169,7 +202,24 @@ public class StoredQueryVistorImpl implements Visitor {
 
     @Override
     public void visit(FindDocumentsByReferenceIdQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        visit((FindDocumentsQuery)query);
+        // TODO: Not yet working as expected
+        if (query.getReferenceIds() != null){
+            query.getTypedReferenceIds().getOuterList().stream().forEach(refId -> mapRefId(refId));
+        }
+    }
+
+    private void mapRefId(List<ReferenceId> refId) {
+        List<String> searchParam = refId.stream().map(this::asSearchToken).collect(Collectors.toList());
+        fhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchParam));
+    }
+
+    private String asSearchToken(ReferenceId id) {
+        if (id.getAssigningAuthority() != null) {
+            return OID_URN + id.getAssigningAuthority().getUniversalId() + "|" + id.getId();
+        } else {
+            return id.getId();
+        }
     }
 
     @Override
