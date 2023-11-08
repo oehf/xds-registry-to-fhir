@@ -7,6 +7,7 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrn
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -115,6 +116,7 @@ public class StoredQueryVistorImpl implements Visitor {
     private void map(List<AvailabilityStatus> status) {
         List<String> fhirStatus = status.stream()
                 .map(MappingSupport.STATUS_MAPPING_FROM_XDS::get)
+                .filter(Objects::nonNull)
                 .map(DocumentReferenceStatus::toCode)
                 .collect(Collectors.toList());
         if (!fhirStatus.isEmpty())

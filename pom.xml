@@ -17,6 +17,7 @@
     <properties>
         <java.version>17</java.version>
         <ipf.version>4.7.0</ipf.version>
+        <mockserver.version>5.15.0</mockserver.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -80,6 +81,12 @@
         <dependency>
             <groupId>org.openehealth.ipf.boot</groupId>
             <artifactId>ipf-hl7-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mock-server</groupId>
+            <artifactId>mockserver-junit-jupiter-no-dependencies</artifactId>
+            <version>${mockserver.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>
