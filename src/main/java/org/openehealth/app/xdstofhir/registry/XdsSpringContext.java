@@ -2,12 +2,12 @@ package org.openehealth.app.xdstofhir.registry;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
+import ca.uhn.fhir.util.BundleBuilder;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
 import org.apache.cxf.bus.spring.SpringBus;
@@ -69,14 +69,16 @@ public class XdsSpringContext {
     @Bean
     public SmartInitializingSingleton createProfilesIfNeeded(IGenericClient fhirClient) {
         return () -> {
+            var builder = new BundleBuilder(fhirClient.getFhirContext());
+            var fhirParser = fhirClient.getFhirContext().newJsonParser();
             for (var profile : profiles) {
                 try (InputStream inputStream = profile.getInputStream()) {
-                    var mhdProfile = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                    fhirClient.update().resource(mhdProfile).execute();
+                    builder.addTransactionUpdateEntry(fhirParser.parseResource(inputStream));
                 } catch (IOException e) {
                     throw new IllegalStateException("MHD Profile definition shall be present");
                 }
             }
+            fhirClient.transaction().withBundle(builder.getBundle()).execute();
         };
     }
 }
