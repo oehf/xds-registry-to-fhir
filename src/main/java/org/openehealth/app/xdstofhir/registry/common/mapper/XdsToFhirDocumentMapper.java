@@ -2,8 +2,6 @@ package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import static java.util.Collections.singletonList;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.MHD_COMPREHENSIVE_PROFILE;
-import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
-import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
 
@@ -15,43 +13,29 @@ import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Address;
 import org.hl7.fhir.r4.model.Base64BinaryType;
 import org.hl7.fhir.r4.model.CanonicalType;
-import org.hl7.fhir.r4.model.CodeableConcept;
-import org.hl7.fhir.r4.model.Coding;
-import org.hl7.fhir.r4.model.ContactPoint;
-import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.DateType;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.Enumerations.AdministrativeGender;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
-import org.hl7.fhir.r4.model.HumanName;
-import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Identifier;
-import org.hl7.fhir.r4.model.Organization;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Period;
 import org.hl7.fhir.r4.model.Practitioner;
-import org.hl7.fhir.r4.model.PractitionerRole;
 import org.hl7.fhir.r4.model.Reference;
-import org.hl7.fhir.r4.model.StringType;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Name;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.PatientInfo;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ReferenceId;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Telecom;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp;
 import org.openehealth.ipf.commons.map.BidiMappingService;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class XdsToFhirDocumentMapper implements Function<DocumentEntry, DocumentReference> {
+public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
+        implements Function<DocumentEntry, DocumentReference> {
 
     private static final String HL7V2FHIR_PATIENT_ADMINISTRATIVE_GENDER = "hl7v2fhir-patient-administrativeGender";
     private final RegistryConfiguration registryConfig;
@@ -91,12 +75,7 @@ public class XdsToFhirDocumentMapper implements Function<DocumentEntry, Document
         if (xdsDoc.getSourcePatientInfo() != null)
             sourcePatientReference.setResource(fromSourcePatientInfo(xdsDoc.getSourcePatientInfo()));
         fhirDoc.getContext().setSourcePatientInfo(sourcePatientReference);
-        var patientReference = new Reference(new IdType(Patient.class.getSimpleName(), xdsDoc.getPatientId().getId()));
-        patientReference.setType(Patient.class.getSimpleName());
-        var patientId = fromIdentifier(xdsDoc.getPatientId());
-        patientId.setUse(Identifier.IdentifierUse.OFFICIAL);
-        patientReference.setIdentifier(patientId);
-        fhirDoc.setSubject(patientReference);
+        fhirDoc.setSubject(patientReferenceFrom(xdsDoc));
         fhirDoc.getContext()
                 .setEncounter(xdsDoc.getReferenceIdList().stream()
                         .filter(refId -> ReferenceId.ID_TYPE_ENCOUNTER_ID.equals(refId.getIdTypeCode()))
@@ -156,75 +135,6 @@ public class XdsToFhirDocumentMapper implements Function<DocumentEntry, Document
         }
     }
 
-    private Reference fromAuthor(final Author author) {
-        var role = new PractitionerRole();
-        var doc = new Practitioner();
-        if(!author.getAuthorPerson().isEmpty()) {
-            if (!author.getAuthorPerson().getName().isEmpty())
-                doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));
-            if (!author.getAuthorPerson().getId().isEmpty())
-                doc.addIdentifier(fromIdentifier(author.getAuthorPerson().getId()));
-        }
-        doc.setTelecom(author.getAuthorTelecom().stream().map(this::fromTelecom).collect(Collectors.toList()));
-        var reference = new Reference();
-        role.getPractitioner().setResource(doc);
-        role.setCode(author.getAuthorRole().stream().map(this::convertToCode).collect(Collectors.toList()));
-        role.setSpecialty(author.getAuthorSpecialty().stream().map(this::convertToCode).collect(Collectors.toList()));
-        if (!author.getAuthorInstitution().isEmpty()) {
-            // TODO: currently only the first element is mapped, because FHIR only support cardinality 1
-            var xdsAuthorOrg = author.getAuthorInstitution().get(0);
-            var org = new Organization();
-            org.setName(xdsAuthorOrg.getOrganizationName());
-            if (xdsAuthorOrg.getIdNumber() != null) {
-                var identifier = new Identifier();
-                identifier.setSystem(OID_URN + xdsAuthorOrg.getAssigningAuthority().getUniversalId());
-                identifier.setValue(xdsAuthorOrg.getIdNumber());
-                org.addIdentifier(identifier);
-            }
-            role.getOrganization().setResource(org);
-        }
-        reference.setResource(role);
-        return reference;
-    }
-
-    private CodeableConcept convertToCode(final Identifiable id) {
-        var fhirConcept = new CodeableConcept();
-        Coding codeing;
-        if (id.getAssigningAuthority() == null || id.getAssigningAuthority().isEmpty()) {
-            codeing = new Coding(null, id.getId(), null);
-        } else {
-            codeing = new Coding(toUrnCoded(id.getAssigningAuthority().getUniversalId()), id.getId(), null);
-        }
-        fhirConcept.setCoding(singletonList(codeing));
-        return fhirConcept;
-    }
-
-    private ContactPoint fromTelecom (final Telecom xdsTelecom) {
-        var cp = new ContactPoint();
-        if (xdsTelecom.getEmail() != null) {
-            cp.setSystem(ContactPointSystem.EMAIL);
-            cp.setValue(xdsTelecom.getEmail());
-        }
-        return cp;
-    }
-
-    private HumanName fromName(final Name<?> xdsName) {
-        var name = new HumanName();
-        name.setFamily(xdsName.getFamilyName());
-        if (xdsName.getGivenName() != null)
-            name.setGiven(singletonList(new StringType(xdsName.getGivenName())));
-        if (xdsName.getPrefix() != null)
-            name.setPrefix(singletonList(new StringType(xdsName.getPrefix())));
-        if (xdsName.getSuffix() != null)
-            name.setSuffix(singletonList(new StringType(xdsName.getSuffix())));
-        return name;
-    }
-
-    private DateTimeType fromTimestamp(final Timestamp timestamp) {
-        return new DateTimeType(Date.from(timestamp.getDateTime().toInstant()),
-                MappingSupport.PRECISION_MAP_FROM_XDS.get(timestamp.getPrecision()));
-    }
-
     private Reference mapReferenceId(final ReferenceId fhirRef) {
         var reference = new Reference();
         reference.setType(fhirRef.getIdTypeCode());
@@ -235,31 +145,4 @@ public class XdsToFhirDocumentMapper implements Function<DocumentEntry, Document
         reference.setIdentifier(id);
         return reference;
     }
-
-    private Identifier fromIdentifier(final Identifiable id) {
-        var identifier = new Identifier();
-        identifier.setSystem(OID_URN + id.getAssigningAuthority().getUniversalId());
-        identifier.setValue(id.getId());
-        return identifier;
-    }
-
-    private Identifier fromIdentifier(final String urnIdValue, final Identifier.IdentifierUse type) {
-        var identifier = new Identifier();
-        identifier.setUse(type);
-        identifier.setSystem(URI_URN);
-        identifier.setValue(urnIdValue);
-        return identifier;
-    }
-
-    private CodeableConcept fromCode(final Code code) {
-        var coding = map(code);
-        var fhirConcept = new CodeableConcept();
-        fhirConcept.setCoding(singletonList(coding));
-        return fhirConcept;
-    }
-
-    private Coding map(final Code code) {
-        return new Coding(toUrnCoded(code.getSchemeName()), code.getCode(), code.getDisplayName().getValue());
-    }
-
 }

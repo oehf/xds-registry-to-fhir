@@ -3,7 +3,6 @@ package org.openehealth.app.xdstofhir.registry.register;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import ca.uhn.fhir.rest.api.CacheControlDirective;
@@ -17,9 +16,12 @@ import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.Patient;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.XDSMetaClass;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.RegisterDocumentSet;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.Response;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.Status;
@@ -33,6 +35,7 @@ import org.springframework.stereotype.Component;
 public class RegisterDocumentsProcessor implements Iti42Service {
     private final IGenericClient client;
     private final Function<DocumentEntry, DocumentReference> documentMapper;
+    private final Function<SubmissionSet, MhdSubmissionSet> submissionSetMapper;
     private final RegistryConfiguration registryConfig;
 
     @Override
@@ -41,7 +44,9 @@ public class RegisterDocumentsProcessor implements Iti42Service {
 
         validateKnownRepository(register);
         register.getDocumentEntries().forEach(this::assignRegistryValues);
-        register.getDocumentEntries().forEach(assignPatientId());
+        register.getDocumentEntries().forEach(this::assignPatientId);
+        assignPatientId(register.getSubmissionSet());
+        assignRegistryValues(register.getSubmissionSet());
         register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
                 .forEach(assoc -> builder.addTransactionUpdateEntry(replacePreviousDocument(assoc.getTargetUuid(),
                         register.getDocumentEntries().stream()
@@ -49,6 +54,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                                 .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
                                         assoc.getSourceUuid())))));
         register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc)));
+        builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet()));
 
         // Execute the transaction
         client.transaction().withBundle(builder.getBundle()).execute();
@@ -91,27 +97,24 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         });
     }
 
-    private void assignRegistryValues(DocumentEntry doc) {
-        if (!doc.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
-            doc.assignEntryUuid();
+    private void assignRegistryValues(XDSMetaClass xdsObject) {
+        if (!xdsObject.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
+            xdsObject.assignEntryUuid();
         }
-        doc.setAvailabilityStatus(AvailabilityStatus.APPROVED);
+        xdsObject.setAvailabilityStatus(AvailabilityStatus.APPROVED);
     }
 
-    private Consumer<DocumentEntry> assignPatientId() {
-        return doc -> {
-            var result = client.search().forResource(Patient.class).count(1)
-                    .where(Patient.IDENTIFIER.exactly().systemAndIdentifier(
-                            OID_URN + doc.getPatientId().getAssigningAuthority().getUniversalId(),
-                            doc.getPatientId().getId()))
-                    .returnBundle(Bundle.class)
-                    .cacheControl(new CacheControlDirective().setNoCache(true).setNoStore(true))
-                    .execute();
-            if (result.getEntry().isEmpty()) {
-                throw new XDSMetaDataException(ValidationMessage.UNKNOWN_PATIENT_ID);
-            }
-            doc.getPatientId().setId(result.getEntryFirstRep().getResource().getIdPart());
-        };
+    private void assignPatientId(XDSMetaClass xdsObject) {
+        var result = client.search().forResource(Patient.class).count(1)
+                .where(Patient.IDENTIFIER.exactly().systemAndIdentifier(
+                        OID_URN + xdsObject.getPatientId().getAssigningAuthority().getUniversalId(),
+                        xdsObject.getPatientId().getId()))
+                .returnBundle(Bundle.class).cacheControl(new CacheControlDirective().setNoCache(true).setNoStore(true))
+                .execute();
+        if (result.getEntry().isEmpty()) {
+            throw new XDSMetaDataException(ValidationMessage.UNKNOWN_PATIENT_ID);
+        }
+        xdsObject.getPatientId().setId(result.getEntryFirstRep().getResource().getIdPart());
     }
 
 }
