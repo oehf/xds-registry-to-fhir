@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.gclient.DateClientParam;
 import ca.uhn.fhir.rest.gclient.IQuery;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
+import com.google.common.collect.Lists;
 import lombok.Getter;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Coding;
@@ -21,6 +23,7 @@ import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ReferenceId;
@@ -50,28 +53,26 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetRelatedDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetAndContentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.PatientIdBasedStoredQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.Query.Visitor;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryList;
 
 public class StoredQueryVistorImpl implements Visitor {
     @Getter
-    private final IQuery<Bundle> fhirQuery;
+    private IQuery<Bundle> fhirQuery;
+    private final IGenericClient client;
 
     public StoredQueryVistorImpl(IGenericClient client) {
-        this.fhirQuery = client.search().forResource(DocumentReference.class)
-                .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
-                .include(DocumentReference.INCLUDE_SUBJECT)
-                .returnBundle(Bundle.class);
+        this.client = client;
     }
 
     @Override
     public void visit(FindDocumentsQuery query) {
-        var patientId = query.getPatientId();
-
-        var identifier = DocumentReference.PATIENT
-                .hasChainedProperty(Patient.IDENTIFIER.exactly().systemAndIdentifier(
-                        OID_URN + patientId.getAssigningAuthority().getUniversalId(), patientId.getId()));
-        fhirQuery.where(identifier);
+        this.fhirQuery = client.search().forResource(DocumentReference.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
+                .include(DocumentReference.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
+        mapPatientIdToQuery(query);
 
         map(query.getClassCodes(), DocumentReference.CATEGORY);
         map(query.getTypeCodes(),DocumentReference.TYPE);
@@ -85,6 +86,15 @@ public class StoredQueryVistorImpl implements Visitor {
         map(query.getServiceStartTime(), DocumentReference.PERIOD);
         map(query.getServiceStopTime(), DocumentReference.PERIOD);
         //TODO: author
+    }
+
+    private void mapPatientIdToQuery(PatientIdBasedStoredQuery query) {
+        var patientId = query.getPatientId();
+
+        var identifier = DocumentReference.PATIENT
+                .hasChainedProperty(Patient.IDENTIFIER.exactly().systemAndIdentifier(
+                        OID_URN + patientId.getAssigningAuthority().getUniversalId(), patientId.getId()));
+        fhirQuery.where(identifier);
     }
 
     @Override
@@ -194,12 +204,27 @@ public class StoredQueryVistorImpl implements Visitor {
 
     @Override
     public void visit(GetAllQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        // TODO: Need to find another solution, since Hapi do not yet support Fhir's multi resource query
+        // https://github.com/hapifhir/hapi-fhir/issues/685
+        this.fhirQuery = client.search().forAllResources()
+                .withAnyProfile(Lists.newArrayList(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE,
+                        MappingSupport.MHD_COMPREHENSIVE_PROFILE))
+                .where(new TokenClientParam(Constants.PARAM_TYPE).exactly().codes("Patient","List"))
+                .include(DocumentReference.INCLUDE_SUBJECT)
+                .include(MhdSubmissionSet.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
+        mapPatientIdToQuery(query);
     }
 
     @Override
     public void visit(FindSubmissionSetsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        this.fhirQuery = client.search().forResource(MhdSubmissionSet.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
+                .where(MhdSubmissionSet.CODE.exactly()
+                        .codings(MhdSubmissionSet.SUBMISSIONSET_CODEING.getCodingFirstRep()))
+                .include(MhdSubmissionSet.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
+        mapPatientIdToQuery(query);
     }
 
     @Override

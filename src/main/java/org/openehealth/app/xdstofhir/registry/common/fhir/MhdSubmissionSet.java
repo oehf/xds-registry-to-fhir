@@ -10,12 +10,13 @@ import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.ListResource;
+import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 
-@ResourceDef(name = "List", profile = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet")
+@ResourceDef(name = "List", profile = MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
 public class MhdSubmissionSet extends ListResource {
     private static final long serialVersionUID = 6730967324453182475L;
 
-    private static final CodeableConcept SUBMISSIONSET_CODEING = new CodeableConcept(
+    public static final CodeableConcept SUBMISSIONSET_CODEING = new CodeableConcept(
             new Coding("https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes", "submissionset",
                     "SubmissionSet as a FHIR List"));
 

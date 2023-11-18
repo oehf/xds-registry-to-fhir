@@ -16,6 +16,8 @@ import org.mockserver.junit.jupiter.MockServerExtension;
 import org.mockserver.model.MediaType;
 import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSetsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
 
 @ExtendWith(MockServerExtension.class)
 public class StoredQueryVistorImplTest {
@@ -32,10 +34,6 @@ public class StoredQueryVistorImplTest {
     @BeforeEach
     void initClassUnderTest() throws IOException {
         var ctx = FhirContext.forR4Cached();
-        mockServer.when(
-                request().withPath("/DocumentReference"))
-                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
-                .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         newRestfulGenericClient = (GenericClient) ctx.newRestfulGenericClient("http://localhost:"+mockServer.getPort()+"/");
         classUnderTest = new StoredQueryVistorImpl(newRestfulGenericClient);
@@ -43,6 +41,10 @@ public class StoredQueryVistorImplTest {
 
     @Test
     void testFindDocumentsQuery (){
+        mockServer.when(
+                request().withPath("/DocumentReference"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
         var query = (FindDocumentsQuery) SampleData.createFindDocumentsQuery().getQuery();
         classUnderTest.visit(query);
         classUnderTest.getFhirQuery().execute();
@@ -61,7 +63,42 @@ public class StoredQueryVistorImplTest {
                 .withQueryStringParameter("facility", "urn:ihe:xds:scheme5|code5,urn:ihe:xds:scheme6|code6")
                 .withQueryStringParameter("status", "current")
                 );
+    }
 
+    @Test
+    void testFindSubmissionSetQuery (){
+        mockServer.when(
+                request().withPath("/List"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
+        var query = (FindSubmissionSetsQuery) SampleData.createFindSubmissionSetsQuery().getQuery();
+        classUnderTest.visit(query);
+        classUnderTest.getFhirQuery().execute();
+
+        mockServer.verify(request()
+                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile", "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet")
+                .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|submissionset")
+                );
+    }
+
+    @Test
+    void testGetAllQuery (){
+        mockServer.when(
+                request().withPath("/"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
+        var query = (GetAllQuery) SampleData.createGetAllQuery().getQuery();
+        classUnderTest.visit(query);
+        classUnderTest.getFhirQuery().execute();
+
+        mockServer.verify(request().withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("_include", "DocumentReference:subject", "List:subject")
+                .withQueryStringParameter("_profile",
+                        "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet,"
+                        + "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference")
+                .withQueryStringParameter("_type", "Patient,List"));
     }
 
 }

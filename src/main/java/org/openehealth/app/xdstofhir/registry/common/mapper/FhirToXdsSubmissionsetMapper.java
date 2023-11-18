@@ -11,7 +11,9 @@ import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.LocalizedString;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
+import org.springframework.stereotype.Component;
 
+@Component
 @RequiredArgsConstructor
 public class FhirToXdsSubmissionsetMapper extends AbstractFhirToXdsMapper
         implements Function<MhdSubmissionSet, SubmissionSet> {

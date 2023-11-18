@@ -24,6 +24,8 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.QueryRegistry;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSetsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryReturnType;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.ErrorCode;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.QueryResponse;
@@ -62,8 +64,20 @@ class XdsToFhirApplicationIT {
 
         var response = findDocumentFor(patientId);
         assertEquals(SUCCESS, response.getStatus());
+        assertEquals(1, response.getDocumentEntries().size());
+        assertEquals(0, response.getSubmissionSets().size());
 
-        assertTrue(response.getDocumentEntries().size() == 1);
+
+        response = findSubmissionSetsFor(patientId);
+        assertEquals(SUCCESS, response.getStatus());
+        assertEquals(1, response.getSubmissionSets().size());
+        assertEquals(0, response.getDocumentEntries().size());
+
+//        response = getAllFor(patientId);
+//        assertEquals(SUCCESS, response.getStatus());
+//        assertEquals(1, response.getSubmissionSets().size());
+//        assertEquals(1, response.getDocumentEntries().size());
+
     }
 
     @Test
@@ -87,6 +101,27 @@ class XdsToFhirApplicationIT {
 
     private QueryResponse findDocumentFor(Identifiable patientId) {
         var fd = new FindDocumentsQuery();
+        fd.setStatus(List.of(AvailabilityStatus.APPROVED));
+        // https://hapi.fhir.org/baseR4/DocumentReference?_pretty=true&_profile=https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference&patient.identifier=urn:oid:1.2.40.0.10.1.4.3.1|1419180172&_include=DocumentReference:subject
+        fd.setPatientId(patientId);
+        var query = new QueryRegistry(fd, QueryReturnType.LEAF_CLASS);
+        var response = storedQuery.processQuery(query);
+        return response;
+    }
+
+    private QueryResponse getAllFor(Identifiable patientId) {
+        var ga = new GetAllQuery();
+        ga.setStatusSubmissionSets(List.of(AvailabilityStatus.APPROVED));
+        ga.setStatusDocuments(List.of(AvailabilityStatus.APPROVED));
+        ga.setStatusFolders(List.of(AvailabilityStatus.APPROVED));
+        ga.setPatientId(patientId);
+        var query = new QueryRegistry(ga, QueryReturnType.LEAF_CLASS);
+        var response = storedQuery.processQuery(query);
+        return response;
+    }
+
+    private QueryResponse findSubmissionSetsFor(Identifiable patientId) {
+        var fd = new FindSubmissionSetsQuery();
         fd.setStatus(List.of(AvailabilityStatus.APPROVED));
         // https://hapi.fhir.org/baseR4/DocumentReference?_pretty=true&_profile=https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference&patient.identifier=urn:oid:1.2.40.0.10.1.4.3.1|1419180172&_include=DocumentReference:subject
         fd.setPatientId(patientId);
