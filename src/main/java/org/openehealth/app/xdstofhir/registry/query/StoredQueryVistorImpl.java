@@ -5,21 +5,25 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_U
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.gclient.DateClientParam;
 import ca.uhn.fhir.rest.gclient.IQuery;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
-import com.google.common.collect.Lists;
-import lombok.Getter;
+import ca.uhn.fhir.util.BundleUtil;
+import lombok.RequiredArgsConstructor;
+import org.hl7.fhir.instance.model.api.IBaseBundle;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.DocumentReference;
+import org.hl7.fhir.r4.model.DomainResource;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
@@ -57,38 +61,36 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.PatientIdBasedSto
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.Query.Visitor;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryList;
 
+@RequiredArgsConstructor
 public class StoredQueryVistorImpl implements Visitor {
-    @Getter
-    private IQuery<Bundle> fhirQuery;
-    private final IGenericClient client;
+    private IQuery<Bundle> documentFhirQuery;
+    private IQuery<Bundle> submissionSetfhirQuery;
 
-    public StoredQueryVistorImpl(IGenericClient client) {
-        this.client = client;
-    }
+    private final IGenericClient client;
 
     @Override
     public void visit(FindDocumentsQuery query) {
-        this.fhirQuery = client.search().forResource(DocumentReference.class)
+        this.documentFhirQuery = client.search().forResource(DocumentReference.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .include(DocumentReference.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
-        mapPatientIdToQuery(query);
+        mapPatientIdToQuery(query, documentFhirQuery);
 
-        map(query.getClassCodes(), DocumentReference.CATEGORY);
-        map(query.getTypeCodes(),DocumentReference.TYPE);
-        map(query.getPracticeSettingCodes(),DocumentReference.SETTING);
-        map(query.getHealthcareFacilityTypeCodes(),DocumentReference.FACILITY);
-        map(query.getFormatCodes(),DocumentReference.FORMAT);
-        map(query.getStatus());
-        map(query.getEventCodes(), DocumentReference.EVENT);
-        map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL);
-        map(query.getCreationTime(), DocumentReference.DATE);
-        map(query.getServiceStartTime(), DocumentReference.PERIOD);
-        map(query.getServiceStopTime(), DocumentReference.PERIOD);
+        map(query.getClassCodes(), DocumentReference.CATEGORY, documentFhirQuery);
+        map(query.getTypeCodes(),DocumentReference.TYPE, documentFhirQuery);
+        map(query.getPracticeSettingCodes(),DocumentReference.SETTING, documentFhirQuery);
+        map(query.getHealthcareFacilityTypeCodes(),DocumentReference.FACILITY, documentFhirQuery);
+        map(query.getFormatCodes(),DocumentReference.FORMAT, documentFhirQuery);
+        map(query.getStatus(), documentFhirQuery);
+        map(query.getEventCodes(), DocumentReference.EVENT, documentFhirQuery);
+        map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL, documentFhirQuery);
+        map(query.getCreationTime(), DocumentReference.DATE, documentFhirQuery);
+        map(query.getServiceStartTime(), DocumentReference.PERIOD, documentFhirQuery);
+        map(query.getServiceStopTime(), DocumentReference.PERIOD, documentFhirQuery);
         //TODO: author
     }
 
-    private void mapPatientIdToQuery(PatientIdBasedStoredQuery query) {
+    private void mapPatientIdToQuery(PatientIdBasedStoredQuery query, IQuery<Bundle> fhirQuery) {
         var patientId = query.getPatientId();
 
         var identifier = DocumentReference.PATIENT
@@ -108,11 +110,11 @@ public class StoredQueryVistorImpl implements Visitor {
         }
         var identifier = DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN,
                 searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList()));
-        fhirQuery.where(identifier);
+        documentFhirQuery.where(identifier);
     }
 
 
-    private void map(TimeRange dateRange, DateClientParam date) {
+    private void map(TimeRange dateRange, DateClientParam date, IQuery<Bundle> fhirQuery) {
         if (dateRange != null) {
             if (dateRange.getFrom() != null) {
                 fhirQuery.where(date.afterOrEquals().millis(Date.from(dateRange.getFrom().getDateTime().toInstant())));
@@ -123,7 +125,7 @@ public class StoredQueryVistorImpl implements Visitor {
         }
     }
 
-    private void map(List<AvailabilityStatus> status) {
+    private void map(List<AvailabilityStatus> status, IQuery<Bundle> fhirQuery) {
         List<String> fhirStatus = status.stream()
                 .map(MappingSupport.STATUS_MAPPING_FROM_XDS::get)
                 .filter(Objects::nonNull)
@@ -133,12 +135,12 @@ public class StoredQueryVistorImpl implements Visitor {
             fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
     }
 
-    private void map (QueryList<Code> codes, TokenClientParam param) {
+    private void map (QueryList<Code> codes, TokenClientParam param, IQuery<Bundle> fhirQuery) {
         if (codes != null)
-            codes.getOuterList().forEach(eventList -> map(eventList, param));
+            codes.getOuterList().forEach(eventList -> map(eventList, param, fhirQuery));
     }
 
-    private void map(List<Code> codes, TokenClientParam param) {
+    private void map(List<Code> codes, TokenClientParam param, IQuery<Bundle> fhirQuery) {
         if (codes != null && !codes.isEmpty()) {
             fhirQuery.where(param.exactly()
                     .codings(codes.stream()
@@ -206,25 +208,30 @@ public class StoredQueryVistorImpl implements Visitor {
     public void visit(GetAllQuery query) {
         // TODO: Need to find another solution, since Hapi do not yet support Fhir's multi resource query
         // https://github.com/hapifhir/hapi-fhir/issues/685
-        this.fhirQuery = client.search().forAllResources()
-                .withAnyProfile(Lists.newArrayList(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE,
-                        MappingSupport.MHD_COMPREHENSIVE_PROFILE))
-                .where(new TokenClientParam(Constants.PARAM_TYPE).exactly().codes("Patient","List"))
+        this.documentFhirQuery = client.search().forResource(DocumentReference.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .include(DocumentReference.INCLUDE_SUBJECT)
-                .include(MhdSubmissionSet.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
-        mapPatientIdToQuery(query);
-    }
-
-    @Override
-    public void visit(FindSubmissionSetsQuery query) {
-        this.fhirQuery = client.search().forResource(MhdSubmissionSet.class)
+        this.submissionSetfhirQuery = client.search().forResource(MhdSubmissionSet.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
                 .where(MhdSubmissionSet.CODE.exactly()
                         .codings(MhdSubmissionSet.SUBMISSIONSET_CODEING.getCodingFirstRep()))
                 .include(MhdSubmissionSet.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
-        mapPatientIdToQuery(query);
+
+        mapPatientIdToQuery(query, documentFhirQuery);
+        mapPatientIdToQuery(query, submissionSetfhirQuery);
+    }
+
+    @Override
+    public void visit(FindSubmissionSetsQuery query) {
+        this.submissionSetfhirQuery = client.search().forResource(MhdSubmissionSet.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
+                .where(MhdSubmissionSet.CODE.exactly()
+                        .codings(MhdSubmissionSet.SUBMISSIONSET_CODEING.getCodingFirstRep()))
+                .include(MhdSubmissionSet.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
+        mapPatientIdToQuery(query, submissionSetfhirQuery);
     }
 
     @Override
@@ -238,7 +245,7 @@ public class StoredQueryVistorImpl implements Visitor {
 
     private void mapRefId(List<ReferenceId> refId) {
         List<String> searchParam = refId.stream().map(this::asSearchToken).collect(Collectors.toList());
-        fhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchParam));
+        documentFhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchParam));
     }
 
     private String asSearchToken(ReferenceId id) {
@@ -293,5 +300,62 @@ public class StoredQueryVistorImpl implements Visitor {
     public void visit(FindDocumentsByTitleQuery query) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
+
+    public Iterable<DocumentReference> getDocumentsFromResult() {
+        if (documentFhirQuery == null) {
+            return () -> Collections.emptyIterator();
+        }
+        return () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
+    }
+
+    public Iterable<MhdSubmissionSet> getSubmissionSetsFrom() {
+        if (submissionSetfhirQuery == null) {
+            return () -> Collections.emptyIterator();
+        }
+        return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
+    }
+
+    public class PagingFhirResultIterator<T extends DomainResource> implements Iterator<T> {
+
+        private Bundle resultBundle;
+        private final Class<T> resultTypeClass;
+        private int currentIteratorIndex = 0;
+
+        public PagingFhirResultIterator(Bundle resultBundle, Class<T> resultTypeClass) {
+            this.resultBundle = resultBundle;
+            this.resultTypeClass = resultTypeClass;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (currentIteratorIndex == getResourcesFromBundle().size()) {
+                nextPageIfAvailable();
+            }
+            return currentIteratorIndex < getResourcesFromBundle().size();
+        }
+
+        private void nextPageIfAvailable() {
+            if (resultBundle.getLink(IBaseBundle.LINK_NEXT) != null) {
+                resultBundle = client.loadPage().next(resultBundle).execute();
+                currentIteratorIndex = 0;
+            }
+        }
+
+        @Override
+        public T next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("No more elements present.");
+            }
+            T result = getResourcesFromBundle().get(currentIteratorIndex);
+            currentIteratorIndex++;
+            return result;
+        }
+
+        private List<T> getResourcesFromBundle(){
+            return BundleUtil.toListOfResourcesOfType(client.getFhirContext(),
+                    resultBundle, resultTypeClass);
+        }
+    }
+
 
 }

@@ -47,7 +47,7 @@ public class StoredQueryVistorImplTest {
                 .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
         var query = (FindDocumentsQuery) SampleData.createFindDocumentsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getFhirQuery().execute();
+        classUnderTest.getDocumentsFromResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("date", "ge19.*", "lt19.*")//skip verify the whole datetime to avoid timezone issues
@@ -73,7 +73,7 @@ public class StoredQueryVistorImplTest {
                 .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
         var query = (FindSubmissionSetsQuery) SampleData.createFindSubmissionSetsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getFhirQuery().execute();
+        classUnderTest.getSubmissionSetsFrom().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
@@ -86,19 +86,28 @@ public class StoredQueryVistorImplTest {
     @Test
     void testGetAllQuery (){
         mockServer.when(
-                request().withPath("/"))
+                request().withPath("/DocumentReference"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
+        mockServer.when(
+                request().withPath("/List"))
                 .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
                 .withBody("{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}"));
         var query = (GetAllQuery) SampleData.createGetAllQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getFhirQuery().execute();
+        classUnderTest.getDocumentsFromResult().iterator();
+        classUnderTest.getSubmissionSetsFrom().iterator();
 
-        mockServer.verify(request().withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
-                .withQueryStringParameter("_include", "DocumentReference:subject", "List:subject")
+        mockServer.verify(request("/DocumentReference")
+                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("_include", "DocumentReference:subject")
                 .withQueryStringParameter("_profile",
-                        "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet,"
-                        + "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference")
-                .withQueryStringParameter("_type", "Patient,List"));
+                       "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference"));
+        mockServer.verify(request("/List")
+                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile",
+                        "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet"));
     }
 
 }

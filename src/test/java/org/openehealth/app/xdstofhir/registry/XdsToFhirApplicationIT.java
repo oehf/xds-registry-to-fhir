@@ -73,10 +73,10 @@ class XdsToFhirApplicationIT {
         assertEquals(1, response.getSubmissionSets().size());
         assertEquals(0, response.getDocumentEntries().size());
 
-//        response = getAllFor(patientId);
-//        assertEquals(SUCCESS, response.getStatus());
-//        assertEquals(1, response.getSubmissionSets().size());
-//        assertEquals(1, response.getDocumentEntries().size());
+        response = getAllFor(patientId);
+        assertEquals(SUCCESS, response.getStatus());
+        assertEquals(1, response.getSubmissionSets().size());
+        assertEquals(1, response.getDocumentEntries().size());
 
     }
 
