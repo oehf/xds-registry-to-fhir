@@ -27,6 +27,7 @@ import org.hl7.fhir.r4.model.DomainResource;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
@@ -65,6 +66,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryList;
 public class StoredQueryVistorImpl implements Visitor {
     private IQuery<Bundle> documentFhirQuery;
     private IQuery<Bundle> submissionSetfhirQuery;
+    private IQuery<Bundle> folderFhirQuery;
 
     private final IGenericClient client;
 
@@ -156,7 +158,13 @@ public class StoredQueryVistorImpl implements Visitor {
 
     @Override
     public void visit(FindFoldersQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        this.folderFhirQuery = client.search().forResource(MhdFolder.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
+                .where(MhdFolder.CODE.exactly()
+                        .codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
+                .include(MhdFolder.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
+        mapPatientIdToQuery(query, folderFhirQuery);
     }
 
     @Override
@@ -218,9 +226,16 @@ public class StoredQueryVistorImpl implements Visitor {
                         .codings(MhdSubmissionSet.SUBMISSIONSET_CODEING.getCodingFirstRep()))
                 .include(MhdSubmissionSet.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
+        this.folderFhirQuery = client.search().forResource(MhdFolder.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
+                .where(MhdFolder.CODE.exactly()
+                        .codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
+                .include(MhdFolder.INCLUDE_SUBJECT)
+                .returnBundle(Bundle.class);
 
         mapPatientIdToQuery(query, documentFhirQuery);
         mapPatientIdToQuery(query, submissionSetfhirQuery);
+        mapPatientIdToQuery(query, folderFhirQuery);
     }
 
     @Override
@@ -313,6 +328,13 @@ public class StoredQueryVistorImpl implements Visitor {
             return () -> Collections.emptyIterator();
         }
         return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
+    }
+
+    public Iterable<MhdFolder> getFoldersFrom() {
+        if (folderFhirQuery == null) {
+            return () -> Collections.emptyIterator();
+        }
+        return () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
     }
 
     public class PagingFhirResultIterator<T extends DomainResource> implements Iterator<T> {

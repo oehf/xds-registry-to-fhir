@@ -10,8 +10,10 @@ import java.util.stream.Stream;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.DocumentReference;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ObjectReference;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Version;
@@ -34,6 +36,7 @@ public class StoredQueryProcessor implements Iti18Service {
     private final IGenericClient client;
     private final Function<DocumentReference, DocumentEntry> documentMapper;
     private final Function<MhdSubmissionSet, SubmissionSet> submissionMapper;
+    private final Function<MhdFolder, Folder> folderMapper;
     private static final Version DEFAULT_VERSION = new Version("1");
 
     @Override
@@ -45,11 +48,15 @@ public class StoredQueryProcessor implements Iti18Service {
 
         var fhirDocuments = visitor.getDocumentsFromResult();
         var fhirSubmissions = visitor.getSubmissionSetsFrom();
+        var fhirFolder = visitor.getFoldersFrom();
         var xdsDocuments = new ArrayList<DocumentEntry>();
         var xdsSubmissionSets = new ArrayList<SubmissionSet>();
+        var xdsFolders = new ArrayList<Folder>();
+
+        int currentResourceCount = 0;
 
         for (DocumentReference document : fhirDocuments) {
-            if (xdsDocuments.size() > maxResultCount) {
+            if (currentResourceCount > maxResultCount) {
                 response.setStatus(Status.PARTIAL_SUCCESS);
                 response.setErrors(Collections.singletonList(new ErrorInfo(ErrorCode.TOO_MANY_RESULTS,
                         "Result exceed maximum of " + maxResultCount, Severity.WARNING, null, null)));
@@ -59,12 +66,12 @@ public class StoredQueryProcessor implements Iti18Service {
             if (xdsDoc != null) {
                 assignDefaultVersioning().accept(xdsDoc);
                 xdsDocuments.add(xdsDoc);
+                currentResourceCount++;
             }
-
         }
 
         for (MhdSubmissionSet submissionset : fhirSubmissions) {
-            if (xdsDocuments.size() + xdsSubmissionSets.size() > maxResultCount) {
+            if (currentResourceCount > maxResultCount) {
                 response.setStatus(Status.PARTIAL_SUCCESS);
                 response.setErrors(Collections.singletonList(new ErrorInfo(ErrorCode.TOO_MANY_RESULTS,
                         "Result exceed maximum of " + maxResultCount, Severity.WARNING, null, null)));
@@ -74,6 +81,22 @@ public class StoredQueryProcessor implements Iti18Service {
             if (xdsSubmission != null) {
                 assignDefaultVersioning().accept(xdsSubmission);
                 xdsSubmissionSets.add(xdsSubmission);
+                currentResourceCount++;
+            }
+        }
+
+        for (MhdFolder folder : fhirFolder) {
+            if (currentResourceCount > maxResultCount) {
+                response.setStatus(Status.PARTIAL_SUCCESS);
+                response.setErrors(Collections.singletonList(new ErrorInfo(ErrorCode.TOO_MANY_RESULTS,
+                        "Result exceed maximum of " + maxResultCount, Severity.WARNING, null, null)));
+                break;
+            }
+            var xdsFolder = folderMapper.apply(folder);
+            if (xdsFolder != null) {
+                assignDefaultVersioning().accept(xdsFolder);
+                xdsFolders.add(xdsFolder);
+                currentResourceCount++;
             }
         }
 

@@ -16,10 +16,12 @@ import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.Patient;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.XDSMetaClass;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.RegisterDocumentSet;
@@ -36,6 +38,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     private final IGenericClient client;
     private final Function<DocumentEntry, DocumentReference> documentMapper;
     private final Function<SubmissionSet, MhdSubmissionSet> submissionSetMapper;
+    private final Function<Folder, MhdFolder> folderMapper;
     private final RegistryConfiguration registryConfig;
 
     @Override
@@ -45,6 +48,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         validateKnownRepository(register);
         register.getDocumentEntries().forEach(this::assignRegistryValues);
         register.getDocumentEntries().forEach(this::assignPatientId);
+        register.getFolders().forEach(this::assignRegistryValues);
+        register.getFolders().forEach(this::assignPatientId);
         assignPatientId(register.getSubmissionSet());
         assignRegistryValues(register.getSubmissionSet());
         register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
@@ -54,6 +59,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                                 .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
                                         assoc.getSourceUuid())))));
         register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc)));
+        register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder)));
         builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet()));
 
         // Execute the transaction
