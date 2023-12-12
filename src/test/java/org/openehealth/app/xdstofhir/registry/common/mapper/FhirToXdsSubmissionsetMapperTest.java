@@ -5,8 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import org.hl7.fhir.r4.model.Reference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
@@ -17,7 +21,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.xml.XmlUtils;
 
 class FhirToXdsSubmissionsetMapperTest {
-    private Function<SubmissionSet, MhdSubmissionSet> xdsToFire;
+    private BiFunction<SubmissionSet, List<Reference>, MhdSubmissionSet> xdsToFire;
     private Function<MhdSubmissionSet, SubmissionSet> fireToXds;
 
     @BeforeEach
@@ -36,7 +40,7 @@ class FhirToXdsSubmissionsetMapperTest {
     }
 
     private void verifyFhirXdsMapping(SubmissionSet testSubmission) throws JAXBException {
-        MhdSubmissionSet mappedFhirSubmission = xdsToFire.apply(testSubmission);
+        MhdSubmissionSet mappedFhirSubmission = xdsToFire.apply(testSubmission, Collections.emptyList());
         SubmissionSet reverseMappedSubmission = fireToXds.apply(mappedFhirSubmission);
         String transformedSubmission = XmlUtils.renderJaxb(JAXBContext.newInstance(SubmissionSet.class),
                 reverseMappedSubmission, true);

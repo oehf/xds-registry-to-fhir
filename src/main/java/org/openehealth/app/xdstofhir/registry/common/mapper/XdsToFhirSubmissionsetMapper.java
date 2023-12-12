@@ -1,11 +1,13 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import java.util.Collections;
-import java.util.function.Function;
+import java.util.List;
+import java.util.function.BiFunction;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Annotation;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.Reference;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
@@ -14,10 +16,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class XdsToFhirSubmissionsetMapper extends AbstractXdsToFhirMapper
-        implements Function<SubmissionSet, MhdSubmissionSet> {
+        implements BiFunction<SubmissionSet, List<Reference>, MhdSubmissionSet> {
     @Override
-    public MhdSubmissionSet apply(SubmissionSet xdsSub) {
+    public MhdSubmissionSet apply(SubmissionSet xdsSub, List<Reference> references) {
         var mhdList = new MhdSubmissionSet();
+        mhdList.setId(xdsSub.getEntryUuid());
         mhdList.addIdentifier(fromIdentifier(xdsSub.getEntryUuid(), Identifier.IdentifierUse.OFFICIAL));
         mhdList.addIdentifier(
                 fromIdentifier(MappingSupport.OID_URN + xdsSub.getUniqueId(), Identifier.IdentifierUse.USUAL));
@@ -36,6 +39,7 @@ public class XdsToFhirSubmissionsetMapper extends AbstractXdsToFhirMapper
             annotation.setText(xdsSub.getComments().getValue());
             mhdList.setNote(Collections.singletonList(annotation));
         }
+        references.forEach(ref -> mhdList.addEntry().setItem(ref));
         return mhdList;
     }
 

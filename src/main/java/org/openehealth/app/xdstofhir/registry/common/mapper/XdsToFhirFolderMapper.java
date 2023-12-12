@@ -1,12 +1,14 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import java.util.Collections;
-import java.util.function.Function;
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Annotation;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.Reference;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
@@ -15,10 +17,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
-        implements Function<Folder, MhdFolder> {
+        implements BiFunction<Folder, List<Reference>, MhdFolder> {
     @Override
-    public MhdFolder apply(Folder xdFolder) {
+    public MhdFolder apply(Folder xdFolder, List<Reference> references) {
         var mhdList = new MhdFolder();
+        mhdList.setId(xdFolder.getEntryUuid());
         mhdList.addIdentifier(fromIdentifier(xdFolder.getEntryUuid(), Identifier.IdentifierUse.OFFICIAL));
         mhdList.addIdentifier(
                 fromIdentifier(MappingSupport.OID_URN + xdFolder.getUniqueId(), Identifier.IdentifierUse.USUAL));
@@ -32,6 +35,7 @@ public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
             annotation.setText(xdFolder.getComments().getValue());
             mhdList.setNote(Collections.singletonList(annotation));
         }
+        references.forEach(ref -> mhdList.addEntry().setItem(ref));
         return mhdList;
     }
 

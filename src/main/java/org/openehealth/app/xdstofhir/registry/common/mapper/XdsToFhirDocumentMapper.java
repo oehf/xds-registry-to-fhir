@@ -44,6 +44,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
     @Override
     public DocumentReference apply(final DocumentEntry xdsDoc) {
         var fhirDoc = new DocumentReference();
+        fhirDoc.setId(xdsDoc.getEntryUuid());
         fhirDoc.getMeta().setProfile(singletonList(new CanonicalType(MHD_COMPREHENSIVE_PROFILE)));
         fhirDoc.setStatus(xdsDoc.getAvailabilityStatus() == APPROVED ? DocumentReferenceStatus.CURRENT
                 : DocumentReferenceStatus.SUPERSEDED);

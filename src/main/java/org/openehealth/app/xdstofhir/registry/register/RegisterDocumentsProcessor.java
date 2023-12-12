@@ -3,7 +3,13 @@ package org.openehealth.app.xdstofhir.registry.register;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -13,11 +19,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
+import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Reference;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Association;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
@@ -37,21 +46,20 @@ import org.springframework.stereotype.Component;
 public class RegisterDocumentsProcessor implements Iti42Service {
     private final IGenericClient client;
     private final Function<DocumentEntry, DocumentReference> documentMapper;
-    private final Function<SubmissionSet, MhdSubmissionSet> submissionSetMapper;
-    private final Function<Folder, MhdFolder> folderMapper;
+    private final BiFunction<SubmissionSet, List<Reference>, MhdSubmissionSet> submissionSetMapper;
+    private final BiFunction<Folder, List<Reference>, MhdFolder> folderMapper;
     private final RegistryConfiguration registryConfig;
 
     @Override
     public Response processRegister(RegisterDocumentSet register) {
-        BundleBuilder builder = new BundleBuilder(client.getFhirContext());
-
         validateKnownRepository(register);
-        register.getDocumentEntries().forEach(this::assignRegistryValues);
+        register.getDocumentEntries().forEach(doc -> assignRegistryValues(doc, register.getAssociations()));
         register.getDocumentEntries().forEach(this::assignPatientId);
-        register.getFolders().forEach(this::assignRegistryValues);
+        register.getFolders().forEach(folder -> assignRegistryValues(folder, register.getAssociations()));
         register.getFolders().forEach(this::assignPatientId);
         assignPatientId(register.getSubmissionSet());
-        assignRegistryValues(register.getSubmissionSet());
+        assignRegistryValues(register.getSubmissionSet(), register.getAssociations());
+        var builder = new BundleBuilder(client.getFhirContext());
         register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
                 .forEach(assoc -> builder.addTransactionUpdateEntry(replacePreviousDocument(assoc.getTargetUuid(),
                         register.getDocumentEntries().stream()
@@ -59,13 +67,41 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                                 .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
                                         assoc.getSourceUuid())))));
         register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc)));
-        register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder)));
-        builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet()));
+
+        var documentMap = register.getDocumentEntries().stream()
+                .collect(Collectors.toMap(DocumentEntry::getEntryUuid, Function.identity()));
+
+        var folderReferences = createReferences(register.getAssociations(), documentMap,
+                register.getFolders().stream().map(XDSMetaClass::getEntryUuid).collect(Collectors.toList()));
+        register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder, folderReferences)));
+
+        var submissionReferences = createReferences(register.getAssociations(), documentMap,
+                Collections.singletonList(register.getSubmissionSet().getEntryUuid()));
+        builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet(), submissionReferences));
 
         // Execute the transaction
         client.transaction().withBundle(builder.getBundle()).execute();
 
         return new Response(Status.SUCCESS);
+    }
+
+    /**
+     * Build the references for the given assocations, where the sourceId is ony of sourceId and the target is one of the docs from the
+     * documentMap.
+     *
+     * @param associations
+     * @param documentMap
+     * @param sourceId
+     * @return the List of FHIR references.
+     */
+    private List<Reference> createReferences(List<Association> associations, Map<String, DocumentEntry> documentMap,
+            List<String> sourceId) {
+        return associations.stream()
+                .filter(assoc -> sourceId.contains(assoc.getSourceUuid()))
+                .map(assoc -> documentMap.get(assoc.getTargetUuid())).filter(Objects::nonNull)
+                .map(document -> new Reference(
+                        new IdType(DocumentReference.class.getSimpleName(), document.getEntryUuid())))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -103,9 +139,14 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         });
     }
 
-    private void assignRegistryValues(XDSMetaClass xdsObject) {
+    private void assignRegistryValues(XDSMetaClass xdsObject, List<Association> associations) {
         if (!xdsObject.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
+            var previousIdentifier = xdsObject.getEntryUuid();
             xdsObject.assignEntryUuid();
+            associations.stream().forEach(assoc -> {
+                assoc.setSourceUuid(assoc.getSourceUuid().replace(previousIdentifier, xdsObject.getEntryUuid()));
+                assoc.setTargetUuid(assoc.getTargetUuid().replace(previousIdentifier, xdsObject.getEntryUuid()));
+            });;
         }
         xdsObject.setAvailabilityStatus(AvailabilityStatus.APPROVED);
     }
