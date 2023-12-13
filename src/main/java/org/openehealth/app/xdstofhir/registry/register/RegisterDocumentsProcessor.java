@@ -1,12 +1,13 @@
 package org.openehealth.app.xdstofhir.registry.register;
 
+import static java.util.Collections.emptyList;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.DOC_DOC_FHIR_ASSOCIATIONS;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -18,8 +19,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.DocumentReference;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.IdType;
+import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
@@ -45,10 +49,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class RegisterDocumentsProcessor implements Iti42Service {
     private final IGenericClient client;
-    private final Function<DocumentEntry, DocumentReference> documentMapper;
-    private final BiFunction<SubmissionSet, List<Reference>, MhdSubmissionSet> submissionSetMapper;
-    private final BiFunction<Folder, List<Reference>, MhdFolder> folderMapper;
+    private final BiFunction<DocumentEntry, List<DocumentReferenceRelatesToComponent>, DocumentReference> documentMapper;
+    private final BiFunction<SubmissionSet, List<ListEntryComponent>, MhdSubmissionSet> submissionSetMapper;
+    private final BiFunction<Folder, List<ListEntryComponent>, MhdFolder> folderMapper;
     private final RegistryConfiguration registryConfig;
+
 
     @Override
     public Response processRegister(RegisterDocumentSet register) {
@@ -59,14 +64,13 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         register.getFolders().forEach(this::assignPatientId);
         assignPatientId(register.getSubmissionSet());
         assignRegistryValues(register.getSubmissionSet(), register.getAssociations());
+        assignRegistryValues(register.getAssociations());
         var builder = new BundleBuilder(client.getFhirContext());
-        register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
-                .forEach(assoc -> builder.addTransactionUpdateEntry(replacePreviousDocument(assoc.getTargetUuid(),
-                        register.getDocumentEntries().stream()
-                                .filter(doc -> doc.getEntryUuid().equals(assoc.getSourceUuid())).findFirst().map(documentMapper)
-                                .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
-                                        assoc.getSourceUuid())))));
-        register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc)));
+        evaluateDocumentReplacement(register, builder);
+
+        var docReferences = createDocToDocReferences(register.getAssociations());
+
+        register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc, docReferences)));
 
         var documentMap = register.getDocumentEntries().stream()
                 .collect(Collectors.toMap(DocumentEntry::getEntryUuid, Function.identity()));
@@ -77,6 +81,12 @@ public class RegisterDocumentsProcessor implements Iti42Service {
 
         var submissionReferences = createReferences(register.getAssociations(), documentMap,
                 Collections.singletonList(register.getSubmissionSet().getEntryUuid()));
+        var folderMap = register.getFolders().stream()
+                .collect(Collectors.toMap(Folder::getEntryUuid, Function.identity()));
+        submissionReferences.addAll(createReferences(register.getAssociations(), folderMap,
+                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
+        submissionReferences.addAll(createReferences(register.getAssociations(),
+                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
         builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet(), submissionReferences));
 
         // Execute the transaction
@@ -85,24 +95,80 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         return new Response(Status.SUCCESS);
     }
 
+
+    private List<DocumentReferenceRelatesToComponent> createDocToDocReferences(List<Association> associations) {
+        return associations.stream()
+                .filter(assoc -> DOC_DOC_FHIR_ASSOCIATIONS.containsKey(assoc.getAssociationType()))
+                .map(assoc -> {
+                    var result = lookupExistingDocument(assoc.getTargetUuid());
+                    var ref = new DocumentReferenceRelatesToComponent();
+                    ref.setCode(DOC_DOC_FHIR_ASSOCIATIONS.get(assoc.getAssociationType()));
+                    ref.setTarget(new Reference(result));
+                    ref.setId(assoc.getEntryUuid());
+                    return ref;
+                })
+                .collect(Collectors.toList());
+    }
+
+
+    private void evaluateDocumentReplacement(RegisterDocumentSet register, BundleBuilder builder) {
+        register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
+                .forEach(assoc -> builder.addTransactionUpdateEntry(replacePreviousDocument(assoc.getTargetUuid(),
+                        register.getDocumentEntries().stream()
+                                .filter(doc -> doc.getEntryUuid().equals(assoc.getSourceUuid())).findFirst().map(doc -> documentMapper.apply(doc, emptyList()))
+                                .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
+                                        assoc.getSourceUuid())))));
+    }
+
+
     /**
      * Build the references for the given assocations, where the sourceId is ony of sourceId and the target is one of the docs from the
      * documentMap.
      *
      * @param associations
-     * @param documentMap
+     * @param xdsObjectMap
      * @param sourceId
      * @return the List of FHIR references.
      */
-    private List<Reference> createReferences(List<Association> associations, Map<String, DocumentEntry> documentMap,
+    private List<ListEntryComponent> createReferences(List<Association> associations, Map<String, ? extends XDSMetaClass> xdsObjectMap,
             List<String> sourceId) {
         return associations.stream()
                 .filter(assoc -> sourceId.contains(assoc.getSourceUuid()))
-                .map(assoc -> documentMap.get(assoc.getTargetUuid())).filter(Objects::nonNull)
-                .map(document -> new Reference(
-                        new IdType(DocumentReference.class.getSimpleName(), document.getEntryUuid())))
+                .filter(assoc -> xdsObjectMap.containsKey(assoc.getTargetUuid()))
+                .map(assoc -> createReference(assoc, xdsObjectMap.get(assoc.getTargetUuid()).getEntryUuid()))
                 .collect(Collectors.toList());
     }
+
+    private ListEntryComponent createReference(Association assoc, String targetEntryUuid) {
+        var ref = new ListEntryComponent(new Reference(
+                new IdType(DocumentReference.class.getSimpleName(), targetEntryUuid)));
+        ref.setId(assoc.getEntryUuid());
+        return ref;
+    }
+
+    private List<ListEntryComponent> createReferences(List<Association> associations,
+            List<String> sourceId) {
+        var associationMap = associations.stream()
+                .collect(Collectors.toMap(Association::getEntryUuid, Function.identity()));
+        return associations.stream()
+                .filter(assoc -> sourceId.contains(assoc.getSourceUuid()))
+                .filter(assoc -> associationMap.containsKey(assoc.getTargetUuid()))
+                .map(assoc -> createReference(assoc))
+                .collect(Collectors.toList());
+    }
+
+    private ListEntryComponent createReference(Association assoc) {
+        var ref = new Reference();
+        Identifier id = new Identifier();
+        id.setSystem(MappingSupport.URI_URN);
+        id.setValue(assoc.getTargetUuid());
+        ref.setIdentifier(id);
+        var refEntry = new ListEntryComponent(ref);
+        refEntry.setId(assoc.getEntryUuid());
+        return refEntry;
+    }
+
+
 
     /**
      * Perform replace according to https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html#3.42.4.1.3.5
@@ -112,13 +178,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
      * @return Replaced document with status set to superseded
      */
     private DocumentReference replacePreviousDocument(String entryUuid, DocumentReference replacingDocument) {
-        var result = client.search().forResource(DocumentReference.class).count(1)
-                .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
-                .returnBundle(Bundle.class).execute();
-        if (result.getEntry().isEmpty()) {
-            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
-        }
-        var replacedDocument = (DocumentReference)result.getEntryFirstRep().getResource();
+        var replacedDocument = lookupExistingDocument(entryUuid);
         if (replacedDocument.getStatus() != DocumentReferenceStatus.CURRENT) {
             throw new XDSMetaDataException(ValidationMessage.DEPRECATED_OBJ_CANNOT_BE_TRANSFORMED);
         }
@@ -129,6 +189,17 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         }
         replacedDocument.setStatus(DocumentReferenceStatus.SUPERSEDED);
         return replacedDocument;
+    }
+
+
+    private DocumentReference lookupExistingDocument(String entryUuid) {
+        var result = client.search().forResource(DocumentReference.class).count(1)
+                .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
+                .returnBundle(Bundle.class).execute();
+        if (result.getEntry().isEmpty()) {
+            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
+        }
+        return (DocumentReference)result.getEntryFirstRep().getResource();
     }
 
     private void validateKnownRepository(RegisterDocumentSet register) {
@@ -149,6 +220,24 @@ public class RegisterDocumentsProcessor implements Iti42Service {
             });;
         }
         xdsObject.setAvailabilityStatus(AvailabilityStatus.APPROVED);
+    }
+
+    /**
+     * Assign generated entryUuid for Associations.
+     *
+     * @param associations
+     */
+    private void assignRegistryValues(List<Association> associations) {
+        for (var assoc : associations) {
+            if (!assoc.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
+                var previousIdentifier = assoc.getEntryUuid();
+                assoc.assignEntryUuid();
+                associations.stream().forEach(as -> {
+                    as.setSourceUuid(as.getSourceUuid().replace(previousIdentifier, assoc.getEntryUuid()));
+                    as.setTargetUuid(as.getTargetUuid().replace(previousIdentifier, assoc.getEntryUuid()));
+                });;
+            }
+        }
     }
 
     private void assignPatientId(XDSMetaClass xdsObject) {

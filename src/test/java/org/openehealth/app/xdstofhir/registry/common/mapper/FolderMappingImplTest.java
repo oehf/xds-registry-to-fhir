@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
@@ -21,7 +21,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
 import org.openehealth.ipf.commons.xml.XmlUtils;
 
 class FolderMappingImplTest {
-    private BiFunction<Folder, List<Reference>, MhdFolder> xdsToFire;
+    private BiFunction<Folder, List<ListEntryComponent>, MhdFolder> xdsToFire;
     private Function<MhdFolder, Folder> fireToXds;
 
     @BeforeEach

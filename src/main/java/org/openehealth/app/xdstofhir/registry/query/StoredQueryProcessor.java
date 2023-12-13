@@ -17,6 +17,7 @@ import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.DomainResource;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.ListResource;
+import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.core.URN;
@@ -62,9 +63,10 @@ public class StoredQueryProcessor implements Iti18Service {
         var fhirFolder = mapFolder(response, visitor.getFoldersFrom());
         response.getAssociations().addAll(createAssociationsFrom(fhirSubmissions, fhirDocuments));
         response.getAssociations().addAll(createAssociationsFrom(fhirSubmissions, fhirFolder));
-        response.getAssociations().addAll(createAssociationsFrom(fhirFolder, fhirDocuments));
-        // TODO: SS-FD-association is missing
-        // TODO: Doc-Doc association is missing
+        Collection<Association> fdDocAssoc = createAssociationsFrom(fhirFolder, fhirDocuments);
+        response.getAssociations().addAll(fdDocAssoc);
+        response.getAssociations().addAll(createAssociationsFrom(fhirSubmissions, fdDocAssoc));
+        response.getAssociations().addAll(createAssociationsBetween(fhirDocuments));
 
         if (query.getReturnType().equals(QueryReturnType.OBJECT_REF)) {
             response.setReferences(Stream
@@ -79,18 +81,64 @@ public class StoredQueryProcessor implements Iti18Service {
         return response;
     }
 
+    private Collection<? extends Association> createAssociationsBetween(List<DocumentReference> fhirDocuments) {
+        var xdsAssocations = new ArrayList<Association>();
+        for (var doc : fhirDocuments) {
+            for (var related : doc.getRelatesTo()) {
+                for (var doc2 : fhirDocuments) {
+                    if (related.getTarget().hasReference() && doc2.getId().contains(related.getTarget().getReference())) {
+                        String assocEntryUuid = related.getId() != null ? related.getId()
+                                : new URN(UUID.randomUUID()).toString();
+                        AssociationType type = MappingSupport.DOC_DOC_XDS_ASSOCIATIONS.get(related.getCode());
+                        Association submissionAssociation = new Association(type,
+                                assocEntryUuid, entryUuidFrom(doc), entryUuidFrom(doc2));
+                        xdsAssocations.add(submissionAssociation);
+                    }
+                }
+            }
+        }
+        return xdsAssocations;
+    }
+
+    private Collection<? extends Association> createAssociationsFrom(List<MhdSubmissionSet> fhirSubmissions,
+            Collection<Association> fdDocAssoc) {
+        var xdsAssocations = new ArrayList<Association>();
+        for (var list : fhirSubmissions) {
+            for (var entry : list.getEntry()) {
+                for (var assoc : fdDocAssoc) {
+                    if (assoc.getEntryUuid().equals(entry.getItem().getIdentifier().getValue())) {
+                        var targetId = assoc.getEntryUuid();
+                        var sourceId = entryUuidFrom(list);
+                        if (targetId != null && sourceId != null) {
+                            String assocEntryUuid = entry.getId() != null ? entry.getId()
+                                    : new URN(UUID.randomUUID()).toString();
+                            Association submissionAssociation = new Association(AssociationType.HAS_MEMBER,
+                                    assocEntryUuid, sourceId, targetId);
+                            submissionAssociation.setLabel(AssociationLabel.ORIGINAL);
+                            xdsAssocations.add(submissionAssociation);
+                        }
+                    }
+                }
+            }
+        }
+        return xdsAssocations;
+    }
+
     private Collection<Association> createAssociationsFrom(List<? extends ListResource> lists,
             List<? extends DomainResource> fhirDocuments) {
         var xdsAssocations = new ArrayList<Association>();
         for (var list : lists) {
             for (var entry : list.getEntry()) {
                 for (var doc : fhirDocuments) {
-                    if (doc.getId().contains(entry.getItem().getReference())) {
+                    if (entry.getItem().hasReference() &&
+                            doc.getId().contains(entry.getItem().getReference())) {
                         var targetId = entryUuidFrom(doc);
                         var sourceId = entryUuidFrom(list);
                         if (targetId != null && sourceId != null) {
+                            String assocEntryUuid = entry.getId() != null ? entry.getId()
+                                    : new URN(UUID.randomUUID()).toString();
                             Association submissionAssociation = new Association(AssociationType.HAS_MEMBER,
-                                    new URN(UUID.randomUUID()).toString(), sourceId, targetId);
+                                    assocEntryUuid, sourceId, targetId);
                             submissionAssociation.setLabel(AssociationLabel.ORIGINAL);
                             xdsAssocations.add(submissionAssociation);
                         }

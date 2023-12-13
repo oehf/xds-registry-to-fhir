@@ -9,10 +9,12 @@ import java.util.stream.Collectors;
 
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import lombok.experimental.UtilityClass;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentRelationshipType;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.Oid;
 import org.openehealth.ipf.commons.core.URN;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp.Precision;
 
@@ -36,6 +38,17 @@ public class MappingSupport {
     public static final Map<TemporalPrecisionEnum, Precision> PRECISION_MAP_FROM_FHIR = PRECISION_MAP_FROM_XDS
             .entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (x, y) -> y, LinkedHashMap::new));
+
+    public static final Map<AssociationType, DocumentRelationshipType> DOC_DOC_FHIR_ASSOCIATIONS = new EnumMap<>(
+            Map.of(AssociationType.APPEND, DocumentRelationshipType.APPENDS,
+                    AssociationType.REPLACE, DocumentRelationshipType.REPLACES,
+                    AssociationType.SIGNS, DocumentRelationshipType.SIGNS,
+                    AssociationType.TRANSFORM, DocumentRelationshipType.TRANSFORMS));
+
+    public static final Map<DocumentRelationshipType, AssociationType> DOC_DOC_XDS_ASSOCIATIONS = DOC_DOC_FHIR_ASSOCIATIONS
+            .entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (x, y) -> y, LinkedHashMap::new));
+
 
     public static final Map<AvailabilityStatus, DocumentReferenceStatus> STATUS_MAPPING_FROM_XDS = new EnumMap<>(
             Map.of(AvailabilityStatus.APPROVED, DocumentReferenceStatus.CURRENT,

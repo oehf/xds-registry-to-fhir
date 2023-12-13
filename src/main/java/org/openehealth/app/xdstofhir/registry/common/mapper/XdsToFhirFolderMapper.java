@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Annotation;
 import org.hl7.fhir.r4.model.Identifier;
-import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
-        implements BiFunction<Folder, List<Reference>, MhdFolder> {
+        implements BiFunction<Folder, List<ListEntryComponent>, MhdFolder> {
     @Override
-    public MhdFolder apply(Folder xdFolder, List<Reference> references) {
+    public MhdFolder apply(Folder xdFolder, List<ListEntryComponent> references) {
         var mhdList = new MhdFolder();
         mhdList.setId(xdFolder.getEntryUuid());
         mhdList.addIdentifier(fromIdentifier(xdFolder.getEntryUuid(), Identifier.IdentifierUse.OFFICIAL));
@@ -35,7 +35,7 @@ public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
             annotation.setText(xdFolder.getComments().getValue());
             mhdList.setNote(Collections.singletonList(annotation));
         }
-        references.forEach(ref -> mhdList.addEntry().setItem(ref));
+        mhdList.setEntry(references);
         return mhdList;
     }
 

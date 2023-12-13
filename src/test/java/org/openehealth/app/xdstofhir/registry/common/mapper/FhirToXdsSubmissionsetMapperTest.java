@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
@@ -21,7 +21,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.xml.XmlUtils;
 
 class FhirToXdsSubmissionsetMapperTest {
-    private BiFunction<SubmissionSet, List<Reference>, MhdSubmissionSet> xdsToFire;
+    private BiFunction<SubmissionSet, List<ListEntryComponent>, MhdSubmissionSet> xdsToFire;
     private Function<MhdSubmissionSet, SubmissionSet> fireToXds;
 
     @BeforeEach

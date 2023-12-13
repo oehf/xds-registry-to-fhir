@@ -6,7 +6,8 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrn
 import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
 
 import java.util.Date;
-import java.util.function.Function;
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import org.hl7.fhir.r4.model.CanonicalType;
 import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.DateType;
 import org.hl7.fhir.r4.model.DocumentReference;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
 import org.hl7.fhir.r4.model.Enumerations.AdministrativeGender;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.Identifier;
@@ -35,14 +37,14 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
-        implements Function<DocumentEntry, DocumentReference> {
+        implements BiFunction<DocumentEntry, List<DocumentReferenceRelatesToComponent>, DocumentReference> {
 
     private static final String HL7V2FHIR_PATIENT_ADMINISTRATIVE_GENDER = "hl7v2fhir-patient-administrativeGender";
     private final RegistryConfiguration registryConfig;
     private final BidiMappingService hl7v2FhirMapping;
 
     @Override
-    public DocumentReference apply(final DocumentEntry xdsDoc) {
+    public DocumentReference apply(final DocumentEntry xdsDoc, List<DocumentReferenceRelatesToComponent> documentReferences) {
         var fhirDoc = new DocumentReference();
         fhirDoc.setId(xdsDoc.getEntryUuid());
         fhirDoc.getMeta().setProfile(singletonList(new CanonicalType(MHD_COMPREHENSIVE_PROFILE)));
@@ -90,6 +92,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
             fhirDoc.setAuthenticator(fromAuthenticator(xdsDoc.getLegalAuthenticator()));
         }
         mapServicePeriod(xdsDoc, fhirDoc);
+        fhirDoc.setRelatesTo(documentReferences);
         return fhirDoc;
     }
 

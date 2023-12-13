@@ -6,10 +6,14 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.apache.groovy.util.Maps;
 import org.hl7.fhir.r4.model.DocumentReference;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
@@ -22,7 +26,7 @@ import org.openehealth.ipf.commons.xml.XmlUtils;
 import org.springframework.core.io.ClassPathResource;
 
 class DocumentMappingImplTest {
-    private Function<DocumentEntry, DocumentReference> xdsToFire;
+    private BiFunction<DocumentEntry, List<DocumentReferenceRelatesToComponent>, DocumentReference> xdsToFire;
     private Function<DocumentReference, DocumentEntry> fireToXds;
 
     @BeforeEach
@@ -54,7 +58,7 @@ class DocumentMappingImplTest {
     }
 
     private void verifyFhirXdsMapping(DocumentEntry testDocument) throws JAXBException {
-        DocumentReference mappedFhirDocument = xdsToFire.apply(testDocument);
+        DocumentReference mappedFhirDocument = xdsToFire.apply(testDocument, Collections.emptyList());
         DocumentEntry reverseMappedDocument = fireToXds.apply(mappedFhirDocument);
         String transformedDoc = XmlUtils.renderJaxb(JAXBContext.newInstance(DocumentEntry.class), reverseMappedDocument,
                 true);

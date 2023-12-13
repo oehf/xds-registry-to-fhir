@@ -30,8 +30,8 @@ public class XdsSpringContext {
 
     @Bean(name = Bus.DEFAULT_BUS_ID)
     public SpringBus springBus() {
-        SpringBus springBus = new SpringBus();
-        LoggingFeature logging = new LoggingFeature();
+        var springBus = new SpringBus();
+        var logging = new LoggingFeature();
         logging.setLogBinary(true);
         logging.setLogMultipart(true);
         logging.setVerbose(true);
@@ -44,19 +44,19 @@ public class XdsSpringContext {
     public IGenericClient fhirClient(@Value("${fhir.server.base}") String fhirServerBase) {
         var ctx = FhirContext.forR4Cached();
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-        LoggingInterceptor loggingInterceptor = new LoggingInterceptor();
+        var loggingInterceptor = new LoggingInterceptor();
         loggingInterceptor.setLogRequestSummary(true);
         loggingInterceptor.setLogResponseBody(true);
         loggingInterceptor.setLogRequestBody(true);
         loggingInterceptor.setLogRequestHeaders(true);
-        IGenericClient client = ctx.newRestfulGenericClient(fhirServerBase);
+        var client = ctx.newRestfulGenericClient(fhirServerBase);
         client.registerInterceptor(loggingInterceptor);
         return client;
     }
 
     @Bean
     public CustomMappings customMapping() {
-        CustomMappings mapping = new CustomMappings();
+        var mapping = new CustomMappings();
         mapping.setMappingResource(hl7v2fhirMapping);
         return mapping;
     }
