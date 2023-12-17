@@ -58,9 +58,9 @@ public class StoredQueryProcessor implements Iti18Service {
 
         var response = new QueryResponse(Status.SUCCESS);
 
-        var fhirDocuments = mapDocuments(response, visitor.getDocumentsFromResult());
-        var fhirSubmissions = mapSubmissionSets(response, visitor.getSubmissionSetsFrom());
-        var fhirFolder = mapFolder(response, visitor.getFoldersFrom());
+        var fhirDocuments = mapDocuments(response, visitor.getDocumentResult());
+        var fhirSubmissions = mapSubmissionSets(response, visitor.getSubmissionSetResult());
+        var fhirFolder = mapFolder(response, visitor.getFolderResult());
         response.getAssociations().addAll(createAssociationsFrom(fhirSubmissions, fhirDocuments));
         response.getAssociations().addAll(createAssociationsFrom(fhirSubmissions, fhirFolder));
         Collection<Association> fdDocAssoc = createAssociationsFrom(fhirFolder, fhirDocuments);

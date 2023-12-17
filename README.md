@@ -9,8 +9,9 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 
 ## Design principals
 * [Spring-boot](https://spring.io/projects/spring-boot) is used as base framework with IPF's spring-boot starter's
-* The usage of [Apache Camel](https://camel.apache.org/) API's was reduced to a minimum. Message Exchange's use the [pojo processiing feature of camel](https://camel.apache.org/manual/pojo-producing.html#_hiding_the_camel_apis_from_your_code)
+* The usage of [Apache Camel](https://camel.apache.org/) API's was reduced to a minimum. Message Exchange's use the [pojo processing feature of camel](https://camel.apache.org/manual/pojo-producing.html#_hiding_the_camel_apis_from_your_code)
 * Implementation try to stay as simple as possible to allow a blueprint (Design Principles DRY and KISS)
+* Mapping of XDS to FHIR R4 and vice versa is aligned on [IHE MHD](https://profiles.ihe.net/ITI/MHD/)
 
 ## Features
 * [ITI-42](https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html) to register documents to the registry  
@@ -21,6 +22,12 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 (default endpoint: MLLP Port 2575)
 
 ## Build and run
+
+Build:
+
+```
+mvn clean install
+```
 
 Start application with maven runner:
 
@@ -40,9 +47,9 @@ mvn failsafe:integration-test -Pit-tests
 ## Not yet implemented
 The application is not yet intended as a production ready application.
 
-* Implemented profiles are not feature complete, e.g. ITI-42 do not yet implement the persistence of SubmissionSets, Folders, etc. and ITI-18 only implement a some of the xds queries.
+* Implemented profiles are not feature complete, e.g. ITI-18 only implement a some of the xds queries.
 * Security concerns are not yet covered (e.g. https, mllps, SAML, audit, ...)
 * Container build
 * More testing
-* IHE compliance test
+* IHE compliance test (using the [XDS Toolkit](https://github.com/usnistgov/iheos-toolkit2))
 * Tests against fhir server beyond hapi

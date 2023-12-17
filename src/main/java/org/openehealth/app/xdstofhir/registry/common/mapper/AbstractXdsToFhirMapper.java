@@ -58,6 +58,8 @@ public abstract class AbstractXdsToFhirMapper {
     }
 
     protected DateTimeType fromTimestamp(final Timestamp timestamp) {
+        if (timestamp == null)
+            return null;
         return new DateTimeType(Date.from(timestamp.getDateTime().toInstant()),
                 MappingSupport.PRECISION_MAP_FROM_XDS.get(timestamp.getPrecision()));
     }

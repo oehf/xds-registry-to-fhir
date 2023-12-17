@@ -1,12 +1,15 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
+import static java.util.Objects.requireNonNullElse;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.urnDecodedScheme;
 
+import java.util.Date;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.CodeableConcept;
+import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.Identifier;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
@@ -31,7 +34,8 @@ public class FhirToXdsFolderMapper extends AbstractFhirToXdsMapper
                 .filter(id -> Identifier.IdentifierUse.USUAL.equals(id.getUse())).findFirst().get().getValue()));
         folder.setEntryUuid(bestQualifiedIdentified(mhdFolder.getIdentifier()).getId());
         folder.setAvailabilityStatus(AvailabilityStatus.APPROVED);
-        folder.setLastUpdateTime(fromDateTime(mhdFolder.getDateElement()));
+        var dateElement = requireNonNullElse(mhdFolder.getDateElement(), new DateTimeType(new Date()));
+        folder.setLastUpdateTime(fromDateTime(dateElement));
         folder.getCodeList().addAll(mhdFolder.getDesignationType().stream()
                 .map(CodeableConcept::getCodingFirstRep)
                 .map(this::fromCode)
