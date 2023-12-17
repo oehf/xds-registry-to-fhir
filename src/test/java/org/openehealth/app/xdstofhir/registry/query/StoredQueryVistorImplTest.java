@@ -19,6 +19,8 @@ import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSetsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersForDocumentQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetAndContentsQuery;
 
 @ExtendWith(MockServerExtension.class)
@@ -152,6 +154,44 @@ public class StoredQueryVistorImplTest {
                 .withQueryStringParameter("_include", "DocumentReference:subject")
                 .withQueryStringParameter("_profile",
                        MappingSupport.MHD_COMPREHENSIVE_PROFILE));
+    }
+
+    @Test
+    void testGetFoldersQuery (){
+        mockServer.when(
+                request().withPath("/List"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody(EMPTY_BUNDLE_RESULT));
+        var query = (GetFoldersQuery) SampleData.createGetFoldersQuery().getQuery();
+        classUnderTest.visit(query);
+        classUnderTest.getFolderResult().iterator();
+
+        mockServer.verify(request()
+                .withQueryStringParameter("identifier",
+                        "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|"
+                               + "urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|"
+                               + "urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
+                .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|folder"));
+    }
+
+    @Test
+    void testGetFolderForDocuments (){
+        mockServer.when(
+                request().withPath("/List"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody(EMPTY_BUNDLE_RESULT));
+        var query = (GetFoldersForDocumentQuery) SampleData.createGetFoldersForDocumentQuery().getQuery();
+        classUnderTest.visit(query);
+        classUnderTest.getFolderResult().iterator();
+
+        mockServer.verify(request()
+                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
+                .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|folder")
+                );
     }
 
 }

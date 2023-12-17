@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.gclient.DateClientParam;
+import ca.uhn.fhir.rest.gclient.ICriterion;
 import ca.uhn.fhir.rest.gclient.IQuery;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
 import ca.uhn.fhir.util.BundleUtil;
@@ -51,6 +52,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSet
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAssociationsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetByIdAndCodesQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetByIdQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetDocumentsAndAssociationsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFolderAndContentsQuery;
@@ -88,43 +90,25 @@ public class StoredQueryVistorImpl implements Visitor {
     @Override
     public void visit(FindDocumentsQuery query) {
         IQuery<Bundle> documentFhirQuery = prepareQuery(query);
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
+        buildResultForDocuments(documentFhirQuery);
     }
 
 
     @Override
     public void visit(GetDocumentsQuery query) {
         IQuery<Bundle> documentFhirQuery = initDocumentQuery();
-        var searchIdentifiers = new ArrayList<String>();
-        if (query.getUniqueIds() != null) {
-            searchIdentifiers.addAll(query.getUniqueIds());
-        }
-        if (query.getUuids() != null) {
-            searchIdentifiers.addAll(query.getUuids());
-        }
-        var identifier = DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN,
-                searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList()));
+        var identifier = buildIdentifierQuery(query, DocumentReference.IDENTIFIER);
         documentFhirQuery.where(identifier);
 
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
+        buildResultForDocuments(documentFhirQuery);
     }
 
-    @Override
-    public void visit(FindDocumentsForMultiplePatientsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
 
     @Override
     public void visit(FindFoldersQuery query) {
         IQuery<Bundle> folderFhirQuery = initFolderQuery();
         mapPatientIdToQuery(query, folderFhirQuery);
-
-        folderResult =  () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
-    }
-
-    @Override
-    public void visit(FindFoldersForMultiplePatientsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        buildResultForFolder(folderFhirQuery);
     }
 
     @Override
@@ -145,9 +129,9 @@ public class StoredQueryVistorImpl implements Visitor {
         documentFhirQuery.whereMap(reverseSearchCriteria);
         folderFhirQuery.whereMap(reverseSearchCriteria);
 
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
-        submissionSetResult = () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
-        folderResult =  () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
+        buildResultForDocuments(documentFhirQuery);
+        buildResultForSubmissionSet(submissionSetfhirQuery);
+        buildResultForFolder(folderFhirQuery);
     }
 
     @Override
@@ -157,12 +141,21 @@ public class StoredQueryVistorImpl implements Visitor {
 
     @Override
     public void visit(GetFoldersQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        IQuery<Bundle> folderFhirQuery = initFolderQuery();
+        var identifier = buildIdentifierQuery(query, MhdFolder.IDENTIFIER);
+        folderFhirQuery.where(identifier);
+
+        buildResultForFolder(folderFhirQuery);
     }
 
     @Override
     public void visit(GetFoldersForDocumentQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        IQuery<Bundle> folderFhirQuery = initFolderQuery();
+
+        String identifier = MappingSupport.toUrnCoded(Objects.requireNonNullElse(query.getUniqueId(), query.getUuid()));
+        folderFhirQuery.where(MhdFolder.ITEM.hasChainedProperty(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
+
+        buildResultForFolder(folderFhirQuery);
     }
 
     @Override
@@ -176,8 +169,8 @@ public class StoredQueryVistorImpl implements Visitor {
         var reverseSearchCriteria = Collections.singletonMap(_HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
         documentFhirQuery.whereMap(reverseSearchCriteria);
 
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
-        folderResult =  () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
+        buildResultForDocuments(documentFhirQuery);
+        buildResultForFolder(folderFhirQuery);
     }
 
     @Override
@@ -200,9 +193,52 @@ public class StoredQueryVistorImpl implements Visitor {
         mapPatientIdToQuery(query, submissionSetfhirQuery);
         mapPatientIdToQuery(query, folderFhirQuery);
 
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
-        submissionSetResult = () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
+        buildResultForDocuments(documentFhirQuery);
+        buildResultForSubmissionSet(submissionSetfhirQuery);
+        buildResultForFolder(folderFhirQuery);
+    }
+
+    @Override
+    public void visit(FindSubmissionSetsQuery query) {
+        IQuery<Bundle> submissionSetfhirQuery = initSubmissionSetQuery();
+        mapPatientIdToQuery(query, submissionSetfhirQuery);
+        buildResultForSubmissionSet(submissionSetfhirQuery);
+    }
+
+    @Override
+    public void visit(FindDocumentsByReferenceIdQuery query) {
+        IQuery<Bundle> documentFhirQuery = prepareQuery(query);
+        // TODO: Not yet working as expected
+        if (query.getReferenceIds() != null){
+            var searchToken = query.getTypedReferenceIds().getOuterList().stream()
+                    .flatMap(List::stream)
+                    .map(this::asSearchToken)
+                    .collect(Collectors.toList());
+            if (!searchToken.isEmpty()) {
+                documentFhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchToken));
+            }
+        }
+        buildResultForDocuments(documentFhirQuery);
+    }
+
+    private void buildResultForFolder(IQuery<Bundle> folderFhirQuery) {
         folderResult =  () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
+    }
+
+    private String asSearchToken(ReferenceId id) {
+        if (id.getAssigningAuthority() != null) {
+            return OID_URN + id.getAssigningAuthority().getUniversalId() + "|" + id.getId();
+        } else {
+            return id.getId();
+        }
+    }
+
+    private void buildResultForDocuments(IQuery<Bundle> documentFhirQuery) {
+        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
+    }
+
+    private void buildResultForSubmissionSet(IQuery<Bundle> submissionSetfhirQuery) {
+        submissionSetResult = () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
     }
 
     private IQuery<Bundle> prepareQuery(FindDocumentsQuery query) {
@@ -234,6 +270,20 @@ public class StoredQueryVistorImpl implements Visitor {
         searchIdentifiers = searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList());
         return searchIdentifiers;
     }
+
+    private ICriterion<?> buildIdentifierQuery(GetByIdQuery query, TokenClientParam param) {
+        var searchIdentifiers = new ArrayList<String>();
+        if (query.getUniqueIds() != null) {
+            searchIdentifiers.addAll(query.getUniqueIds());
+        }
+        if (query.getUuids() != null) {
+            searchIdentifiers.addAll(query.getUuids());
+        }
+        var identifier = param.exactly().systemAndValues(URI_URN,
+                searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList()));
+        return identifier;
+    }
+
 
     private void mapPatientIdToQuery(PatientIdBasedStoredQuery query, IQuery<Bundle> fhirQuery) {
         var patientId = query.getPatientId();
@@ -267,80 +317,6 @@ public class StoredQueryVistorImpl implements Visitor {
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .include(DocumentReference.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
-    }
-
-    @Override
-    public void visit(FindSubmissionSetsQuery query) {
-        IQuery<Bundle> submissionSetfhirQuery = initSubmissionSetQuery();
-        mapPatientIdToQuery(query, submissionSetfhirQuery);
-
-        submissionSetResult = () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
-    }
-
-    @Override
-    public void visit(FindDocumentsByReferenceIdQuery query) {
-        IQuery<Bundle> documentFhirQuery = prepareQuery(query);
-        // TODO: Not yet working as expected
-        if (query.getReferenceIds() != null){
-            var searchToken = query.getTypedReferenceIds().getOuterList().stream().flatMap(refId -> refId.stream()).map(this::asSearchToken).collect(Collectors.toList());
-            if (!searchToken.isEmpty()) {
-                documentFhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchToken));
-            }
-        }
-        documentResult =  () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
-    }
-
-    private String asSearchToken(ReferenceId id) {
-        if (id.getAssigningAuthority() != null) {
-            return OID_URN + id.getAssigningAuthority().getUniversalId() + "|" + id.getId();
-        } else {
-            return id.getId();
-        }
-    }
-
-    @Override
-    public void visit(FetchQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindMedicationTreatmentPlansQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindPrescriptionsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindDispensesQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindMedicationAdministrationsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindPrescriptionsForValidationQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindPrescriptionsForDispenseQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindMedicationListQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void visit(FindDocumentsByTitleQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
     }
 
 
@@ -379,7 +355,11 @@ public class StoredQueryVistorImpl implements Visitor {
         }
     }
 
-
+    /**
+     * Lazy Fhir Page Iterator. Fetches the next result page when the iterator has loaded the last element.
+     *
+     * @param <T>
+     */
     public class PagingFhirResultIterator<T extends DomainResource> implements Iterator<T> {
 
         private Bundle resultBundle;
@@ -422,5 +402,63 @@ public class StoredQueryVistorImpl implements Visitor {
         }
     }
 
+    //===========================================================================
+    //Queries below are not part of ITI-18 and not yet implemented
+    //===========================================================================
+
+    @Override
+    public void visit(FindDocumentsForMultiplePatientsQuery query) {
+        throw new UnsupportedOperationException("ITI-51 not yet supported");
+    }
+
+    @Override
+    public void visit(FindFoldersForMultiplePatientsQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FetchQuery query) {
+        throw new UnsupportedOperationException("ITI-63 not yet supported");
+    }
+
+    @Override
+    public void visit(FindMedicationTreatmentPlansQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindPrescriptionsQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindDispensesQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindMedicationAdministrationsQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindPrescriptionsForValidationQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindPrescriptionsForDispenseQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindMedicationListQuery query) {
+        throw new UnsupportedOperationException("Not yet supported");
+    }
+
+    @Override
+    public void visit(FindDocumentsByTitleQuery query) {
+        throw new UnsupportedOperationException("Gematik ePA query not yet supported");
+    }
 
 }
