@@ -31,5 +31,7 @@ jobs:
       run: mvn -B package --file pom.xml
     - name: Integration Tests with Maven
       run: mvn failsafe:integration-test -Pit-tests --file pom.xml
+    - name: Make mvnw executable
+      run: chmod +x ${{ github.workspace }}/mvnw
     - name: Submit Dependency Snapshot
       uses: advanced-security/maven-dependency-submission-action@v3
