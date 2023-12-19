@@ -21,6 +21,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSet
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersForDocumentQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetRelatedDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetAndContentsQuery;
 
 @ExtendWith(MockServerExtension.class)
@@ -191,6 +192,30 @@ public class StoredQueryVistorImplTest {
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
                 .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|folder")
+                );
+    }
+
+    @Test
+    void testGetRelatedDocuments (){
+        mockServer.when(
+                request().withPath("/DocumentReference"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody(EMPTY_BUNDLE_RESULT));
+        var query = (GetRelatedDocumentsQuery) SampleData.createGetRelatedDocumentsQuery().getQuery();
+        classUnderTest.visit(query);
+        classUnderTest.getDocumentResult().iterator();
+
+        mockServer.verify(request()
+                .withQueryStringParameter("identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
+                .withQueryStringParameter("_include", "DocumentReference:subject", "DocumentReference:relatesto")
+                .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
+                .withQueryStringParameter("relatesto:missing", "false")
+                );
+        mockServer.verify(request()
+                .withQueryStringParameter("relatesto.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
+                .withQueryStringParameter("_include", "DocumentReference:subject", "DocumentReference:relatesto")
+                .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
+                .withQueryStringParameter("relatesto:missing", "false")
                 );
     }
 

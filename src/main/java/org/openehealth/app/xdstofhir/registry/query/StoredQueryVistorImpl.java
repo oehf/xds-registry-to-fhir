@@ -65,6 +65,13 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.PatientIdBasedSto
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.Query.Visitor;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.QueryList;
 
+/**
+ * Implement ITI-18 queries using IPF visitor pattern.
+ *
+ * The XDS queries will be mapped to a FHIR query.
+ *
+ *
+ */
 public class StoredQueryVistorImpl implements Visitor {
     /*
      * Hapi currently ignore "_list" parameter, workaround here with "_has" reverse chain search
@@ -136,7 +143,22 @@ public class StoredQueryVistorImpl implements Visitor {
 
     @Override
     public void visit(GetRelatedDocumentsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        IQuery<Bundle> documentFhirQuery = initDocumentQuery();
+        documentFhirQuery.include(DocumentReference.INCLUDE_RELATESTO);
+        String identifier = MappingSupport.toUrnCoded(Objects.requireNonNullElse(query.getUniqueId(), query.getUuid()));
+        documentFhirQuery.where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier));
+        documentFhirQuery.where(DocumentReference.RELATESTO.isMissing(false));
+        buildResultForDocuments(documentFhirQuery);
+        List<DocumentReference> results = new ArrayList<>();
+        populateDocumentTo(results);
+        documentFhirQuery = initDocumentQuery();
+        documentFhirQuery.include(DocumentReference.INCLUDE_RELATESTO);
+        documentFhirQuery.where(DocumentReference.RELATESTO
+                .hasChainedProperty(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
+        documentFhirQuery.where(DocumentReference.RELATESTO.isMissing(false));
+        buildResultForDocuments(documentFhirQuery);
+        populateDocumentTo(results);
+        documentResult = () -> results.iterator();
     }
 
     @Override
@@ -219,6 +241,12 @@ public class StoredQueryVistorImpl implements Visitor {
             }
         }
         buildResultForDocuments(documentFhirQuery);
+    }
+
+    private void populateDocumentTo(List<DocumentReference> results) {
+        for (var result : documentResult) {
+            results.add(result);
+        }
     }
 
     private void buildResultForFolder(IQuery<Bundle> folderFhirQuery) {
