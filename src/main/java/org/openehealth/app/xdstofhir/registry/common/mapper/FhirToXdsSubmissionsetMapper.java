@@ -30,7 +30,7 @@ public class FhirToXdsSubmissionsetMapper extends AbstractFhirToXdsMapper
                 .filter(id -> Identifier.IdentifierUse.USUAL.equals(id.getUse())).findFirst().get().getValue()));
         submissionSet.setEntryUuid(bestQualifiedIdentified(mhdSubmission.getIdentifier()).getId());
         submissionSet.setAvailabilityStatus(AvailabilityStatus.APPROVED);
-        submissionSet.setSourceId(MappingSupport.urnDecodedScheme(mhdSubmission.getSourceId().getId()));
+        submissionSet.setSourceId(MappingSupport.urnDecodedScheme(mhdSubmission.getSourceId().getValue()));
         submissionSet.setSubmissionTime(fromDateTime(mhdSubmission.getDateElement()));
         submissionSet.setContentTypeCode(fromCode(mhdSubmission.getDesignationType().getCodingFirstRep()));
         submissionSet.setAuthor(fromAuthor(mhdSubmission.getSource()));

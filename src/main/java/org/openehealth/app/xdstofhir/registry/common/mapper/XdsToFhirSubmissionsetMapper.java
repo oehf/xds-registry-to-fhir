@@ -26,7 +26,7 @@ public class XdsToFhirSubmissionsetMapper extends AbstractXdsToFhirMapper
                 fromIdentifier(MappingSupport.OID_URN + xdsSub.getUniqueId(), Identifier.IdentifierUse.USUAL));
         mhdList.setSubject(patientReferenceFrom(xdsSub));
         Identifier sourceId = new Identifier();
-        sourceId.setId(MappingSupport.toUrnCoded(xdsSub.getSourceId()));
+        sourceId.setValue(MappingSupport.toUrnCoded(xdsSub.getSourceId()));
         mhdList.setSourceId(sourceId);
         mhdList.setDateElement(fromTimestamp(xdsSub.getSubmissionTime()));
         mhdList.setDesignationType(fromCode(xdsSub.getContentTypeCode()));
