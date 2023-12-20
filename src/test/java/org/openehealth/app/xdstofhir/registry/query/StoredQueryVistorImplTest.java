@@ -11,6 +11,7 @@ import ca.uhn.fhir.rest.client.impl.GenericClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.junit.jupiter.MockServerExtension;
 import org.mockserver.model.MediaType;
@@ -19,6 +20,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSetsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetDocumentsAndAssociationsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersForDocumentQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetRelatedDocumentsQuery;
@@ -42,7 +44,7 @@ public class StoredQueryVistorImplTest {
         var ctx = FhirContext.forR4Cached();
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         newRestfulGenericClient = (GenericClient) ctx.newRestfulGenericClient("http://localhost:"+mockServer.getPort()+"/");
-        classUnderTest = new StoredQueryVistorImpl(newRestfulGenericClient);
+        classUnderTest = new StoredQueryVistorImpl(newRestfulGenericClient, Mockito.mock(StoredQueryProcessor.class), true);
     }
 
     @Test
@@ -53,7 +55,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (FindDocumentsQuery) SampleData.createFindDocumentsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getDocumentResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("date", "ge19.*", "lt19.*")//skip verify the whole datetime to avoid timezone issues
@@ -79,7 +80,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (FindSubmissionSetsQuery) SampleData.createFindSubmissionSetsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getSubmissionSetResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
@@ -101,9 +101,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (GetAllQuery) SampleData.createGetAllQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getDocumentResult().iterator();
-        classUnderTest.getSubmissionSetResult().iterator();
-        classUnderTest.getFolderResult().iterator();
 
         mockServer.verify(request("/DocumentReference")
                 .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
@@ -134,9 +131,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (GetSubmissionSetAndContentsQuery) SampleData.createGetSubmissionSetAndContentsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getDocumentResult().iterator();
-        classUnderTest.getSubmissionSetResult().iterator();
-        classUnderTest.getFolderResult().iterator();
 
         mockServer.verify(request("/List")
                 .withQueryStringParameter("identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:uuid:1.2.3.4")
@@ -165,7 +159,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (GetFoldersQuery) SampleData.createGetFoldersQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getFolderResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("identifier",
@@ -185,7 +178,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (GetFoldersForDocumentQuery) SampleData.createGetFoldersForDocumentQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getFolderResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
@@ -203,7 +195,6 @@ public class StoredQueryVistorImplTest {
                 .withBody(EMPTY_BUNDLE_RESULT));
         var query = (GetRelatedDocumentsQuery) SampleData.createGetRelatedDocumentsQuery().getQuery();
         classUnderTest.visit(query);
-        classUnderTest.getDocumentResult().iterator();
 
         mockServer.verify(request()
                 .withQueryStringParameter("identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
@@ -217,6 +208,37 @@ public class StoredQueryVistorImplTest {
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .withQueryStringParameter("relatesto:missing", "false")
                 );
+    }
+
+    @Test
+    void testGetDocumentsAndAssociations (){
+        mockServer.when(
+                request().withPath("/DocumentReference"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody(EMPTY_BUNDLE_RESULT));
+        mockServer.when(
+                request().withPath("/List"))
+                .respond(response().withStatusCode(200).withContentType(MediaType.APPLICATION_JSON)
+                .withBody(EMPTY_BUNDLE_RESULT));
+        var query = (GetDocumentsAndAssociationsQuery) SampleData.createGetDocumentsAndAssociationsQuery().getQuery();
+        classUnderTest.visit(query);
+
+        mockServer.verify(request()
+                .withQueryStringParameter("identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("_include", "DocumentReference:subject")
+                .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
+                );
+        mockServer.verify(request("/List")
+                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile",
+                        MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE));
+
+        mockServer.verify(request("/List")
+                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("_include", "List:subject")
+                .withQueryStringParameter("_profile",
+                        MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE));
     }
 
 }
