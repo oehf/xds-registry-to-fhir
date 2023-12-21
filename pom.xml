@@ -16,7 +16,7 @@
     <description>IHE XDS.b Registry using a FHIR server as backend</description>
     <properties>
         <java.version>17</java.version>
-        <ipf.version>4.8-m4</ipf.version>
+        <ipf.version>4.8-m5</ipf.version>
         <mockserver.version>5.15.0</mockserver.version>
     </properties>
     <dependencyManagement>
