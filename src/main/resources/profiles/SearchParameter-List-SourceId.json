@@ -1,0 +1,44 @@
+{
+    "resourceType" : "SearchParameter",
+    "id" : "List-SourceId",
+    "text" : {
+      "status" : "generated",
+      "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>SourceId</h2><p>Parameter <code>sourceId</code>:<code>token</code></p><div><p>This SearchParameter enables finding Lists by the SourceId of a submissionSet.</p>\n</div><table class=\"grid\"><tr><td>Resource</td><td><a href=\"http://hl7.org/fhir/R4/list.html\">List</a></td></tr><tr><td>Expression</td><td><code>(extension('https://profiles.ihe.net/ITI/MHD/StructureDefinition/SourceId').value.ofType(Identifier))</code></td></tr><tr><td>Multiples</td><td><ul><li>multipleAnd: It's up to the server whether the parameter may repeat in order to specify multiple values that must all be true</li><li>multipleOr: It's up to the server whether the parameter can have multiple values (separated by comma) where at least one must be true</li></ul></td></tr></table></div>"
+    },
+    "url" : "https://profiles.ihe.net/ITI/MHD/SearchParameter/List-SourceId",
+    "version" : "4.2.2-current",
+    "name" : "SourceId",
+    "status" : "active",
+    "date" : "2023-11-22T17:43:57+00:00",
+    "publisher" : "IHE IT Infrastructure Technical Committee",
+    "contact" : [{
+      "telecom" : [{
+        "system" : "url",
+        "value" : "https://www.ihe.net/ihe_domains/it_infrastructure/"
+      }]
+    },
+    {
+      "telecom" : [{
+        "system" : "email",
+        "value" : "iti@ihe.net"
+      }]
+    },
+    {
+      "name" : "IHE IT Infrastructure Technical Committee",
+      "telecom" : [{
+        "system" : "email",
+        "value" : "iti@ihe.net"
+      }]
+    }],
+    "description" : "This SearchParameter enables finding Lists by the SourceId of a submissionSet.",
+    "jurisdiction" : [{
+      "coding" : [{
+        "system" : "http://unstats.un.org/unsd/methods/m49/m49.htm",
+        "code" : "001"
+      }]
+    }],
+    "code" : "sourceId",
+    "base" : ["List"],
+    "type" : "token",
+    "expression" : "(extension('https://profiles.ihe.net/ITI/MHD/StructureDefinition/SourceId').value.ofType(Identifier))"
+  }

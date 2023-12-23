@@ -274,15 +274,17 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
 
     private Iterable<MhdFolder> buildResultForFolder(IQuery<Bundle> folderFhirQuery) {
-        return  () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
+        return () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
     }
 
     private Iterable<DocumentReference> buildResultForDocuments(IQuery<Bundle> documentFhirQuery) {
-        return () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(), DocumentReference.class);
+        return () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(),
+                DocumentReference.class);
     }
 
     private Iterable<MhdSubmissionSet> buildResultForSubmissionSet(IQuery<Bundle> submissionSetfhirQuery) {
-        return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(), MhdSubmissionSet.class);
+        return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(),
+                MhdSubmissionSet.class);
     }
 
     private IQuery<Bundle> prepareQuery(FindDocumentsQuery query) {

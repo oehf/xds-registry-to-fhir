@@ -4,10 +4,14 @@ import static java.util.Collections.emptyList;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.DOC_DOC_FHIR_ASSOCIATIONS;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.UUID_URN;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -18,11 +22,13 @@ import ca.uhn.fhir.util.BundleBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.ListResource;
 import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
@@ -30,6 +36,7 @@ import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
+import org.openehealth.ipf.commons.core.URN;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Association;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
@@ -38,7 +45,10 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.XDSMetaClass;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.RegisterDocumentSet;
+import org.openehealth.ipf.commons.ihe.xds.core.responses.ErrorCode;
+import org.openehealth.ipf.commons.ihe.xds.core.responses.ErrorInfo;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.Response;
+import org.openehealth.ipf.commons.ihe.xds.core.responses.Severity;
 import org.openehealth.ipf.commons.ihe.xds.core.responses.Status;
 import org.openehealth.ipf.commons.ihe.xds.core.validate.ValidationMessage;
 import org.openehealth.ipf.commons.ihe.xds.core.validate.XDSMetaDataException;
@@ -58,6 +68,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     @Override
     public Response processRegister(RegisterDocumentSet register) {
         validateKnownRepository(register);
+        register.getDocumentEntries().forEach(this::validateResubmission);
         register.getDocumentEntries().forEach(doc -> assignRegistryValues(doc, register.getAssociations()));
         register.getDocumentEntries().forEach(this::assignPatientId);
         register.getFolders().forEach(folder -> assignRegistryValues(folder, register.getAssociations()));
@@ -75,8 +86,16 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         var documentMap = register.getDocumentEntries().stream()
                 .collect(Collectors.toMap(DocumentEntry::getEntryUuid, Function.identity()));
 
-        var folderReferences = createReferences(register.getAssociations(), documentMap,
-                register.getFolders().stream().map(XDSMetaClass::getEntryUuid).collect(Collectors.toList()));
+        var folderAssociations = register.getAssociations().stream()
+                .filter(assoc -> !assoc.getSourceUuid().equals(register.getSubmissionSet().getEntryUuid()))
+                .filter(assoc -> AssociationType.HAS_MEMBER.equals(assoc.getAssociationType()))
+                .collect(Collectors.toList());
+
+        var folderUuids = register.getFolders().stream().map(XDSMetaClass::getEntryUuid).collect(Collectors.toList());
+        var externalFolderUuid = folderAssociations.stream().map(Association::getSourceUuid).filter(folderId -> !folderUuids.contains(folderId)).collect(Collectors.toList());
+        createUpdateOfExistingFolders(externalFolderUuid, folderAssociations, documentMap).forEach(builder::addTransactionUpdateEntry);
+
+        var folderReferences = createReferences(folderAssociations, documentMap, folderUuids);
         register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder, folderReferences)));
 
         var submissionReferences = createReferences(register.getAssociations(), documentMap,
@@ -92,7 +111,107 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         // Execute the transaction
         client.transaction().withBundle(builder.getBundle()).execute();
 
-        return new Response(Status.SUCCESS);
+        var response = new Response(Status.SUCCESS);
+
+        addWarningForExtraMetadataIfPresent(register, response);
+
+        return response;
+    }
+
+    /**
+     * This registry implementation currently do not store extra-metadata. Notify with a client warning that no
+     * extra metadata is being stored.
+     *
+     * @param register
+     * @param response
+     */
+    private void addWarningForExtraMetadataIfPresent(RegisterDocumentSet register, Response response) {
+        if (register.getDocumentEntries().stream().anyMatch(doc -> !doc.getExtraMetadata().isEmpty())) {
+            response.getErrors().add(new ErrorInfo(ErrorCode.EXTRA_METADATA_NOT_SAVED,
+                    "Register do not yet support storing extra metadata", Severity.WARNING, null, null));
+        }
+    }
+
+    /**
+     * Validate the resubmission preconditions:
+     * - entryUUID shall not be used before (in case client use a UUID based id)
+     * - same uniqueid is only allowed if hash and size is the same as the existing document.
+     *
+     * @param doc
+     */
+    private void validateResubmission(DocumentEntry doc) {
+        DocumentReference existingDoc;
+        try {
+            if (doc.getEntryUuid().startsWith(UUID_URN)) {
+                existingDoc = lookupExistingDocument(doc.getEntryUuid(), MappingSupport.toUrnCoded(doc.getUniqueId()));
+            } else {
+                existingDoc = lookupExistingDocument(MappingSupport.toUrnCoded(doc.getUniqueId()));
+            }
+        } catch (XDSMetaDataException notPresent) {
+            return;
+        }
+        if (existingDoc.getIdentifier().stream().filter(id -> id.getValue().equals(doc.getEntryUuid())).findAny().isPresent()) {
+            throw new XDSMetaDataException(ValidationMessage.UUID_NOT_UNIQUE);
+        }
+        if (!(doc.getHash().equals(existingDoc.getContentFirstRep().getAttachment().getHashElement().asStringValue()))) {
+            throw new XDSMetaDataException(ValidationMessage.DIFFERENT_HASH_CODE_IN_RESUBMISSION);
+        }
+        if (!(doc.getSize() == existingDoc.getContentFirstRep().getAttachment().getSize())) {
+            throw new XDSMetaDataException(ValidationMessage.DIFFERENT_SIZE_IN_RESUBMISSION);
+        }
+    }
+
+    /**
+     * Update an existing folder and add a link to a document.
+     *
+     * @param externalFolderUuid
+     * @param folderAssociations
+     * @param documentMap
+     * @return a list of folder objects that need to be updated.
+     */
+    private List<MhdFolder> createUpdateOfExistingFolders(List<String> externalFolderUuid,
+            List<Association> folderAssociations, Map<String, DocumentEntry> documentMap) {
+        return folderAssociations.stream().filter(assoc -> externalFolderUuid.contains(assoc.getSourceUuid()))
+                .map(assoc -> {
+                    var folder = lookupExistingFolder(assoc.getSourceUuid());
+                    folder.setDate(new Date());
+                    var documentEntry = documentMap.get(assoc.getTargetUuid());
+                    if (documentEntry != null) {
+                        if (!folder.getSubject().getIdentifier().getValue()
+                                .equals(documentEntry.getPatientId().getId())) {
+                            throw new XDSMetaDataException(ValidationMessage.FOLDER_PATIENT_ID_WRONG);
+                        }
+                        folder.addEntry(createReference(assoc, DocumentReference.class.getSimpleName()));
+                    } else {
+                        var existingDoc = lookupExistingDocument(assoc.getTargetUuid());
+                        if (!folder.getSubject().getIdentifier().getValue()
+                                .equals(existingDoc.getSubject().getIdentifier().getValue())) {
+                            throw new XDSMetaDataException(ValidationMessage.FOLDER_PATIENT_ID_WRONG);
+                        }
+                        var ref = new ListEntryComponent(new Reference(existingDoc));
+                        ref.setId(assoc.getEntryUuid());
+                        folder.addEntry(ref);
+                        folder.setDate(new Date());
+                    }
+                    return folder;
+                }).collect(Collectors.toList());
+    }
+
+    /**
+     * lookup an existing folder in the FHIR server. In case this folder do not exists, throw a XDS metadata exception to
+     * reject the transaction.
+     *
+     * @param entryUuid
+     * @return The folder associated with the given uuid.
+     */
+    private MhdFolder lookupExistingFolder(String entryUuid) {
+        var result = client.search().forResource(MhdFolder.class).count(1)
+                .where(MhdFolder.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
+                .returnBundle(Bundle.class).execute();
+        if (result.getEntry().isEmpty()) {
+            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
+        }
+        return (MhdFolder)result.getEntryFirstRep().getResource();
     }
 
 
@@ -113,13 +232,41 @@ public class RegisterDocumentsProcessor implements Iti42Service {
 
     private void evaluateDocumentReplacement(RegisterDocumentSet register, BundleBuilder builder) {
         register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
-                .forEach(assoc -> builder.addTransactionUpdateEntry(replacePreviousDocument(assoc.getTargetUuid(),
-                        register.getDocumentEntries().stream()
-                                .filter(doc -> doc.getEntryUuid().equals(assoc.getSourceUuid())).findFirst().map(doc -> documentMapper.apply(doc, emptyList()))
-                                .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
-                                        assoc.getSourceUuid())))));
+                .forEach(assoc -> {
+                    var replacingDoc = register.getDocumentEntries().stream()
+                            .filter(doc -> doc.getEntryUuid().equals(assoc.getSourceUuid()))
+                            .findFirst().map(doc -> documentMapper.apply(doc, emptyList()))
+                            .orElseThrow(() -> new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE,
+                                    assoc.getSourceUuid()));
+                    var replacePreviousDocument = replacePreviousDocument(assoc.getTargetUuid(),
+                            replacingDoc);
+                    replaceFolderAssocations(replacePreviousDocument, replacingDoc).forEach(builder::addTransactionUpdateEntry);
+                    builder.addTransactionUpdateEntry(replacePreviousDocument);
+                });
     }
 
+    /**
+     * Takeover folder relationsship from replaced document to the new document.
+     *
+     * @param replacePreviousDocument
+     * @param replacingDoc
+     * @return Folders to update.
+     */
+    private List<MhdFolder> replaceFolderAssocations(DocumentReference replacePreviousDocument,
+            DocumentReference replacingDoc) {
+        var folderResult = client.search().forResource(MhdFolder.class)
+                .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
+                .where(MhdFolder.CODE.exactly().codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
+                .where(MhdFolder.ITEM.hasId(replacePreviousDocument.getId())).returnBundle(Bundle.class).execute();
+        return folderResult.getEntry().stream().map(BundleEntryComponent::getResource).map(MhdFolder.class::cast)
+                .map(folder -> {
+                    var ref = new ListEntryComponent(new Reference(replacingDoc));
+                    ref.setId(new URN(UUID.randomUUID()).toString());
+                    folder.setDate(new Date());
+                    folder.addEntry(ref);
+                    return folder;
+                }).collect(Collectors.toList());
+    }
 
     /**
      * Build the references for the given assocations, where the sourceId is ony of sourceId and the target is one of the docs from the
@@ -133,15 +280,20 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     private List<ListEntryComponent> createReferences(List<Association> associations, Map<String, ? extends XDSMetaClass> xdsObjectMap,
             List<String> sourceId) {
         return associations.stream()
+                .filter(assoc -> AssociationType.HAS_MEMBER.equals(assoc.getAssociationType()))
                 .filter(assoc -> sourceId.contains(assoc.getSourceUuid()))
                 .filter(assoc -> xdsObjectMap.containsKey(assoc.getTargetUuid()))
-                .map(assoc -> createReference(assoc, xdsObjectMap.get(assoc.getTargetUuid()).getEntryUuid()))
+                .map(assoc -> {
+                    var metaClass = xdsObjectMap.get(assoc.getTargetUuid());
+                    var refType = metaClass instanceof DocumentEntry ? DocumentReference.class.getSimpleName() : ListResource.class.getSimpleName();
+                    return createReference(assoc, refType);
+                })
                 .collect(Collectors.toList());
     }
 
-    private ListEntryComponent createReference(Association assoc, String targetEntryUuid) {
+    private ListEntryComponent createReference(Association assoc, String refType) {
         var ref = new ListEntryComponent(new Reference(
-                new IdType(DocumentReference.class.getSimpleName(), targetEntryUuid)));
+                new IdType(refType, assoc.getTargetUuid())));
         ref.setId(assoc.getEntryUuid());
         return ref;
     }
@@ -192,12 +344,13 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     }
 
 
-    private DocumentReference lookupExistingDocument(String entryUuid) {
+    private DocumentReference lookupExistingDocument(String... ids) {
         var result = client.search().forResource(DocumentReference.class).count(1)
-                .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
+                .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, ids))
+                .cacheControl(new CacheControlDirective().setNoCache(true).setNoStore(true))
                 .returnBundle(Bundle.class).execute();
         if (result.getEntry().isEmpty()) {
-            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
+            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, Arrays.toString(ids));
         }
         return (DocumentReference)result.getEntryFirstRep().getResource();
     }
@@ -210,6 +363,12 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         });
     }
 
+    /**
+     * Set entryUUID and availability Status.
+     *
+     * @param xdsObject
+     * @param associations
+     */
     private void assignRegistryValues(XDSMetaClass xdsObject, List<Association> associations) {
         if (!xdsObject.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
             var previousIdentifier = xdsObject.getEntryUuid();
@@ -240,6 +399,11 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         }
     }
 
+    /**
+     * Assign the ID of the fhir patient resource to the xds object.
+     *
+     * @param xdsObject
+     */
     private void assignPatientId(XDSMetaClass xdsObject) {
         var result = client.search().forResource(Patient.class).count(1)
                 .where(Patient.IDENTIFIER.exactly().systemAndIdentifier(

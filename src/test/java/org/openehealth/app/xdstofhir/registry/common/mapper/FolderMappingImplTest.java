@@ -40,6 +40,8 @@ class FolderMappingImplTest {
     private void verifyFhirXdsMapping(Folder testFolder) throws JAXBException {
         MhdFolder mappedFhirFolder = xdsToFire.apply(testFolder, Collections.emptyList());
         Folder reverseMappedFolder = fireToXds.apply(mappedFhirFolder);
+        //ignore lastUpdated field
+        reverseMappedFolder.setLastUpdateTime(testFolder.getLastUpdateTime());
         String transformedFolder = XmlUtils.renderJaxb(JAXBContext.newInstance(Folder.class), reverseMappedFolder,
                 true);
         String originalFolder = XmlUtils.renderJaxb(JAXBContext.newInstance(Folder.class), testFolder,

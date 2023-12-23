@@ -1,8 +1,8 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -13,7 +13,6 @@ import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,8 +27,7 @@ public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
         mhdList.addIdentifier(
                 fromIdentifier(MappingSupport.OID_URN + xdFolder.getUniqueId(), Identifier.IdentifierUse.USUAL));
         mhdList.setSubject(patientReferenceFrom(xdFolder));
-        var lastUpdateTime = Objects.requireNonNullElse(xdFolder.getLastUpdateTime(), Timestamp.now());
-        mhdList.setDateElement(fromTimestamp(lastUpdateTime));
+        mhdList.setDate(new Date());
         mhdList.setDesignationType(xdFolder.getCodeList().stream().map(this::fromCode).collect(Collectors.toList()));
         if (xdFolder.getTitle() != null)
             mhdList.setTitle(xdFolder.getTitle().getValue());
