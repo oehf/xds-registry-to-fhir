@@ -3,18 +3,10 @@ package org.openehealth.app.xdstofhir.registry.query;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 
-import java.io.IOException;
-
-import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
-import ca.uhn.fhir.rest.client.impl.GenericClient;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.junit.jupiter.MockServerExtension;
 import org.mockserver.model.MediaType;
+import org.openehealth.app.xdstofhir.registry.AbstractFhirMockserver;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
@@ -26,24 +18,11 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetFoldersQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetRelatedDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetSubmissionSetAndContentsQuery;
 
-@ExtendWith(MockServerExtension.class)
-public class StoredQueryVistorImplTest {
-    private static final String EMPTY_BUNDLE_RESULT = "{\"resourceType\":\"Bundle\",\"type\":\"searchset\"}";
+public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
     private StoredQueryVistorImpl classUnderTest;
-    private GenericClient newRestfulGenericClient;
 
-    private MockServerClient mockServer;
-
-    @BeforeEach
-    void beforeEachLifecyleMethod(MockServerClient mockServer) {
-        this.mockServer = mockServer;
-    }
-
-    @BeforeEach
-    void initClassUnderTest() throws IOException {
-        var ctx = FhirContext.forR4Cached();
-        ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-        newRestfulGenericClient = (GenericClient) ctx.newRestfulGenericClient("http://localhost:"+mockServer.getPort()+"/");
+    @Override
+    protected void initClassUnderTest()  {
         classUnderTest = new StoredQueryVistorImpl(newRestfulGenericClient, Mockito.mock(StoredQueryProcessor.class), true);
     }
 

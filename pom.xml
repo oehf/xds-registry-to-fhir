@@ -115,6 +115,14 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <scm>
+        <connection>scm:git:git://github.com/oehf/xds-registry-to-fhir.git</connection>
+        <url>http://github.com/oehf/xds-registry-to-fhir</url>
+    </scm>
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/oehf/xds-registry-to-fhir/issues</url>
+    </issueManagement>
     <developers>
         <developer>
             <id>thopap</id>
