@@ -126,7 +126,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
      * @param response
      */
     private void addWarningForExtraMetadataIfPresent(RegisterDocumentSet register, Response response) {
-        if (register.getDocumentEntries().stream().anyMatch(doc -> !doc.getExtraMetadata().isEmpty())) {
+        if (register.getDocumentEntries().stream()
+                .anyMatch(doc -> doc.getExtraMetadata() != null && !doc.getExtraMetadata().isEmpty())) {
             response.getErrors().add(new ErrorInfo(ErrorCode.EXTRA_METADATA_NOT_SAVED,
                     "Register do not yet support storing extra metadata", Severity.WARNING, null, null));
         }
@@ -334,7 +335,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         if (replacedDocument.getStatus() != DocumentReferenceStatus.CURRENT) {
             throw new XDSMetaDataException(ValidationMessage.DEPRECATED_OBJ_CANNOT_BE_TRANSFORMED);
         }
-        if (!replacedDocument.getSubject().getReference().equals(replacingDocument.getSubject().getReference())) {
+        if (!replacedDocument.getSubject().getReference().endsWith(replacingDocument.getSubject().getReference())) {
             log.debug("Replacing and replaced document do not have the same patientid {} and {}",
                     replacedDocument.getSubject().getReference(), replacingDocument.getSubject().getReference());
             throw new XDSMetaDataException(ValidationMessage.DOC_ENTRY_PATIENT_ID_WRONG);
