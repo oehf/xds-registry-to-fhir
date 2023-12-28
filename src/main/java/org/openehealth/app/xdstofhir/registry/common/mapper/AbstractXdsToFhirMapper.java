@@ -6,11 +6,11 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_U
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 
 import java.util.Date;
-import java.util.stream.Collectors;
 
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.ContactPoint;
+import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.HumanName;
 import org.hl7.fhir.r4.model.IdType;
@@ -21,7 +21,6 @@ import org.hl7.fhir.r4.model.Practitioner;
 import org.hl7.fhir.r4.model.PractitionerRole;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.StringType;
-import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
@@ -84,11 +83,11 @@ public abstract class AbstractXdsToFhirMapper {
             if (!author.getAuthorPerson().getId().isEmpty())
                 doc.addIdentifier(fromIdentifier(author.getAuthorPerson().getId()));
         }
-        doc.setTelecom(author.getAuthorTelecom().stream().map(this::fromTelecom).collect(Collectors.toList()));
+        doc.setTelecom(author.getAuthorTelecom().stream().map(this::fromTelecom).toList());
         var reference = new Reference();
         role.getPractitioner().setResource(doc);
-        role.setCode(author.getAuthorRole().stream().map(this::convertToCode).collect(Collectors.toList()));
-        role.setSpecialty(author.getAuthorSpecialty().stream().map(this::convertToCode).collect(Collectors.toList()));
+        role.setCode(author.getAuthorRole().stream().map(this::convertToCode).toList());
+        role.setSpecialty(author.getAuthorSpecialty().stream().map(this::convertToCode).toList());
         if (!author.getAuthorInstitution().isEmpty()) {
             // TODO: currently only the first element is mapped, because FHIR only support cardinality 1
             var xdsAuthorOrg = author.getAuthorInstitution().get(0);

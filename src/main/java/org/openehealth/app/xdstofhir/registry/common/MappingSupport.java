@@ -20,10 +20,10 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp.Precision;
 
 @UtilityClass
 public class MappingSupport {
-    public static String OID_URN = "urn:oid:";
-    public static String UUID_URN = "urn:uuid:";
-    public static String XDS_URN = "urn:ihe:xds:";
-    public static String URI_URN = "urn:ietf:rfc:3986";
+    public static final String OID_URN = "urn:oid:";
+    public static final String UUID_URN = "urn:uuid:";
+    public static final String XDS_URN = "urn:ihe:xds:";
+    public static final String URI_URN = "urn:ietf:rfc:3986";
     public static final String MHD_COMPREHENSIVE_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference";
     public static final String MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet";
     public static final String MHD_COMPREHENSIVE_FOLDER_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.Folder";

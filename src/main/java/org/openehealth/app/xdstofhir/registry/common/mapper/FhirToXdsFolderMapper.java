@@ -5,7 +5,6 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.urnDe
 
 import java.util.Date;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.CodeableConcept;
@@ -39,7 +38,7 @@ public class FhirToXdsFolderMapper extends AbstractFhirToXdsMapper
         folder.getCodeList().addAll(mhdFolder.getDesignationType().stream()
                 .map(CodeableConcept::getCodingFirstRep)
                 .map(this::fromCode)
-                .collect(Collectors.toList()));
+                .toList());
         if (mhdFolder.getTitle() != null)
             folder.setTitle(new LocalizedString(mhdFolder.getTitle()));
         if (!mhdFolder.getNote().isEmpty())

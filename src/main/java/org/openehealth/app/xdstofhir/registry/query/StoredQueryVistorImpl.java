@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -107,8 +106,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     @Override
     public void visit(GetSubmissionSetsQuery query) {
         var submissionSetfhirQuery = initSubmissionSetQuery();
-        var searchIdentifiers = query.getUuids().stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList());
-        submissionSetfhirQuery.where(MhdSubmissionSet.ITEM.hasChainedProperty(
+        var searchIdentifiers = query.getUuids().stream().map(MappingSupport::toUrnCoded).toList();
+        submissionSetfhirQuery.where(ListResource.ITEM.hasChainedProperty(
                 new TokenClientParam("identifier").exactly().systemAndValues(URI_URN, searchIdentifiers)));
         buildResultForSubmissionSet(submissionSetfhirQuery);
         var mapSubmissionSets = mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery));
@@ -119,9 +118,9 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         folderFhirQuery.where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
 
         mapAssociations(createAssociationsFrom(mapSubmissionSets, StreamSupport
-                .stream(buildResultForDocuments(documentFhirQuery).spliterator(), false).collect(Collectors.toList())));
+                .stream(buildResultForDocuments(documentFhirQuery).spliterator(), false).toList()));
         mapAssociations(createAssociationsFrom(mapSubmissionSets, StreamSupport
-                .stream(buildResultForFolder(folderFhirQuery).spliterator(), false).collect(Collectors.toList())));
+                .stream(buildResultForFolder(folderFhirQuery).spliterator(), false).toList()));
     }
 
 
@@ -134,7 +133,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL, documentFhirQuery);
         var folderFhirQuery = initFolderQuery();
         var searchIdentifiers = urnIdentifierList(query);
-        submissionSetfhirQuery.where(MhdSubmissionSet.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
+        submissionSetfhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
         var reverseSearchCriteria = Collections.singletonMap(_HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
         documentFhirQuery.whereMap(reverseSearchCriteria);
         folderFhirQuery.whereMap(reverseSearchCriteria);
@@ -173,7 +172,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     @Override
     public void visit(GetFoldersQuery query) {
         var folderFhirQuery = initFolderQuery();
-        var identifier = buildIdentifierQuery(query, MhdFolder.IDENTIFIER);
+        var identifier = buildIdentifierQuery(query, ListResource.IDENTIFIER);
         folderFhirQuery.where(identifier);
         mapFolders(buildResultForFolder(folderFhirQuery));
     }
@@ -182,7 +181,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     public void visit(GetFoldersForDocumentQuery query) {
         var folderFhirQuery = initFolderQuery();
         var identifier = MappingSupport.toUrnCoded(Objects.requireNonNullElse(query.getUniqueId(), query.getUuid()));
-        folderFhirQuery.where(MhdFolder.ITEM.hasChainedProperty(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
+        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
         mapFolders(buildResultForFolder(folderFhirQuery));
     }
 
@@ -193,7 +192,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL, documentFhirQuery);
         var folderFhirQuery = initFolderQuery();
         var searchIdentifiers = urnIdentifierList(query);
-        folderFhirQuery.where(MhdFolder.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
+        folderFhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
         var reverseSearchCriteria = Collections.singletonMap(_HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
         documentFhirQuery.whereMap(reverseSearchCriteria);
         var fhirDocuments = mapDocuments(buildResultForDocuments(documentFhirQuery));
@@ -209,12 +208,12 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         var fhirDocuments = mapDocuments(buildResultForDocuments(documentFhirQuery));
 
         var folderFhirQuery = initFolderQuery();
-        folderFhirQuery.where(MhdFolder.ITEM.hasChainedProperty(identifier));
+        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty(identifier));
         List<MhdFolder> folders = new ArrayList<>();
         buildResultForFolder(folderFhirQuery).iterator().forEachRemaining(folders::add);
 
         var submissionSetfhirQuery = initSubmissionSetQuery();
-        submissionSetfhirQuery.where(MhdSubmissionSet.ITEM.hasChainedProperty(identifier));
+        submissionSetfhirQuery.where(ListResource.ITEM.hasChainedProperty(identifier));
         List<MhdSubmissionSet> submissionSets = new ArrayList<>();
         buildResultForSubmissionSet(submissionSetfhirQuery).iterator().forEachRemaining(submissionSets::add);
 
@@ -264,7 +263,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
             var searchToken = query.getTypedReferenceIds().getOuterList().stream()
                     .flatMap(List::stream)
                     .map(StoredQueryMapper::asSearchToken)
-                    .collect(Collectors.toList());
+                    .toList();
             if (!searchToken.isEmpty()) {
                 documentFhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchToken));
             }
@@ -309,18 +308,18 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     private IQuery<Bundle> initSubmissionSetQuery() {
         return client.search().forResource(MhdSubmissionSet.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
-                .where(MhdSubmissionSet.CODE.exactly()
+                .where(ListResource.CODE.exactly()
                         .codings(MhdSubmissionSet.SUBMISSIONSET_CODEING.getCodingFirstRep()))
-                .include(MhdSubmissionSet.INCLUDE_SUBJECT)
+                .include(ListResource.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
     }
 
     private IQuery<Bundle> initFolderQuery() {
         return client.search().forResource(MhdFolder.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
-                .where(MhdFolder.CODE.exactly()
+                .where(ListResource.CODE.exactly()
                         .codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
-                .include(MhdFolder.INCLUDE_SUBJECT)
+                .include(ListResource.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
     }
 
@@ -469,7 +468,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     private void mapAssociations(Collection<Association> associations) {
         if (isObjectRefResult)
             response.getReferences().addAll(associations.stream()
-                    .map(assoc -> new ObjectReference(assoc.getEntryUuid())).collect(Collectors.toList()));
+                    .map(assoc -> new ObjectReference(assoc.getEntryUuid())).toList());
         else
             response.getAssociations().addAll(associations);
     }

@@ -9,7 +9,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import ca.uhn.fhir.rest.gclient.DateClientParam;
 import ca.uhn.fhir.rest.gclient.ICriterion;
@@ -56,7 +55,7 @@ public class StoredQueryMapper {
                 .map(MappingSupport.STATUS_MAPPING_FROM_XDS::get)
                 .filter(Objects::nonNull)
                 .map(DocumentReferenceStatus::toCode)
-                .collect(Collectors.toList());
+                .toList();
         if (!fhirStatus.isEmpty())
             fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
     }
@@ -71,16 +70,16 @@ public class StoredQueryMapper {
             fhirQuery.where(param.exactly()
                     .codings(codes.stream()
                             .map(xdsCode -> new Coding(toUrnCoded(xdsCode.getSchemeName()), xdsCode.getCode(), null))
-                            .collect(Collectors.toList()).toArray(new Coding[0])));
+                            .toList().toArray(new Coding[0])));
         }
     }
 
     public static String entryUuidFrom(IBaseResource resource) {
         List<Identifier> identifier;
-        if (resource instanceof DocumentReference) {
-            identifier = ((DocumentReference) resource).getIdentifier();
-        } else if (resource instanceof ListResource) {
-            identifier = ((ListResource) resource).getIdentifier();
+        if (resource instanceof DocumentReference dResource) {
+            identifier = dResource.getIdentifier();
+        } else if (resource instanceof ListResource lResource) {
+            identifier = lResource.getIdentifier();
         } else {
             return null;
         }
@@ -90,14 +89,14 @@ public class StoredQueryMapper {
 
 
     public static List<String> urnIdentifierList(GetFromDocumentQuery query) {
-        List<String> searchIdentifiers = new ArrayList<String>();
+        List<String> searchIdentifiers = new ArrayList<>();
         if (query.getUniqueId() != null) {
             searchIdentifiers.add(query.getUniqueId());
         }
         if (query.getUuid() != null) {
             searchIdentifiers.add(query.getUuid());
         }
-        searchIdentifiers = searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList());
+        searchIdentifiers = searchIdentifiers.stream().map(MappingSupport::toUrnCoded).toList();
         return searchIdentifiers;
     }
 
@@ -109,9 +108,8 @@ public class StoredQueryMapper {
         if (query.getUuids() != null) {
             searchIdentifiers.addAll(query.getUuids());
         }
-        var identifier = param.exactly().systemAndValues(URI_URN,
-                searchIdentifiers.stream().map(MappingSupport::toUrnCoded).collect(Collectors.toList()));
-        return identifier;
+        return param.exactly().systemAndValues(URI_URN,
+                searchIdentifiers.stream().map(MappingSupport::toUrnCoded).toList());
     }
 
 

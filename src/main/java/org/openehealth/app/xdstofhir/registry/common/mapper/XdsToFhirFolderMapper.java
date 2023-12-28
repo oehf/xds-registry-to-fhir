@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Annotation;
@@ -28,7 +27,7 @@ public class XdsToFhirFolderMapper extends AbstractXdsToFhirMapper
                 fromIdentifier(MappingSupport.OID_URN + xdFolder.getUniqueId(), Identifier.IdentifierUse.USUAL));
         mhdList.setSubject(patientReferenceFrom(xdFolder));
         mhdList.setDate(new Date());
-        mhdList.setDesignationType(xdFolder.getCodeList().stream().map(this::fromCode).collect(Collectors.toList()));
+        mhdList.setDesignationType(xdFolder.getCodeList().stream().map(this::fromCode).toList());
         if (xdFolder.getTitle() != null)
             mhdList.setTitle(xdFolder.getTitle().getValue());
         if (xdFolder.getComments() != null) {

@@ -6,6 +6,7 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_U
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.UUID_URN;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -89,17 +90,17 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         var folderAssociations = register.getAssociations().stream()
                 .filter(assoc -> !assoc.getSourceUuid().equals(register.getSubmissionSet().getEntryUuid()))
                 .filter(assoc -> AssociationType.HAS_MEMBER.equals(assoc.getAssociationType()))
-                .collect(Collectors.toList());
+                .toList();
 
-        var folderUuids = register.getFolders().stream().map(XDSMetaClass::getEntryUuid).collect(Collectors.toList());
-        var externalFolderUuid = folderAssociations.stream().map(Association::getSourceUuid).filter(folderId -> !folderUuids.contains(folderId)).collect(Collectors.toList());
+        var folderUuids = register.getFolders().stream().map(XDSMetaClass::getEntryUuid).toList();
+        var externalFolderUuid = folderAssociations.stream().map(Association::getSourceUuid).filter(folderId -> !folderUuids.contains(folderId)).toList();
         createUpdateOfExistingFolders(externalFolderUuid, folderAssociations, documentMap).forEach(builder::addTransactionUpdateEntry);
 
         var folderReferences = createReferences(folderAssociations, documentMap, folderUuids);
         register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder, folderReferences)));
 
-        var submissionReferences = createReferences(register.getAssociations(), documentMap,
-                Collections.singletonList(register.getSubmissionSet().getEntryUuid()));
+        var submissionReferences = new ArrayList<ListEntryComponent>(createReferences(register.getAssociations(), documentMap,
+                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
         var folderMap = register.getFolders().stream()
                 .collect(Collectors.toMap(Folder::getEntryUuid, Function.identity()));
         submissionReferences.addAll(createReferences(register.getAssociations(), folderMap,
@@ -157,7 +158,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         if (!(doc.getHash().equals(existingDoc.getContentFirstRep().getAttachment().getHashElement().asStringValue()))) {
             throw new XDSMetaDataException(ValidationMessage.DIFFERENT_HASH_CODE_IN_RESUBMISSION);
         }
-        if (!(doc.getSize() == existingDoc.getContentFirstRep().getAttachment().getSize())) {
+        if (doc.getSize() != existingDoc.getContentFirstRep().getAttachment().getSize()) {
             throw new XDSMetaDataException(ValidationMessage.DIFFERENT_SIZE_IN_RESUBMISSION);
         }
     }
@@ -195,7 +196,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                         folder.setDate(new Date());
                     }
                     return folder;
-                }).collect(Collectors.toList());
+                }).toList();
     }
 
     /**
@@ -207,7 +208,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
      */
     private MhdFolder lookupExistingFolder(String entryUuid) {
         var result = client.search().forResource(MhdFolder.class).count(1)
-                .where(MhdFolder.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
+                .where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
                 .returnBundle(Bundle.class).execute();
         if (result.getEntry().isEmpty()) {
             throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
@@ -227,7 +228,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                     ref.setId(assoc.getEntryUuid());
                     return ref;
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
 
@@ -257,8 +258,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
             DocumentReference replacingDoc) {
         var folderResult = client.search().forResource(MhdFolder.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
-                .where(MhdFolder.CODE.exactly().codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
-                .where(MhdFolder.ITEM.hasId(replacePreviousDocument.getId())).returnBundle(Bundle.class).execute();
+                .where(ListResource.CODE.exactly().codings(MhdFolder.FOLDER_CODEING.getCodingFirstRep()))
+                .where(ListResource.ITEM.hasId(replacePreviousDocument.getId())).returnBundle(Bundle.class).execute();
         return folderResult.getEntry().stream().map(BundleEntryComponent::getResource).map(MhdFolder.class::cast)
                 .map(folder -> {
                     var ref = new ListEntryComponent(new Reference(replacingDoc));
@@ -266,7 +267,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                     folder.setDate(new Date());
                     folder.addEntry(ref);
                     return folder;
-                }).collect(Collectors.toList());
+                }).toList();
     }
 
     /**
@@ -289,7 +290,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                     var refType = metaClass instanceof DocumentEntry ? DocumentReference.class.getSimpleName() : ListResource.class.getSimpleName();
                     return createReference(assoc, refType);
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private ListEntryComponent createReference(Association assoc, String refType) {
@@ -306,8 +307,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         return associations.stream()
                 .filter(assoc -> sourceId.contains(assoc.getSourceUuid()))
                 .filter(assoc -> associationMap.containsKey(assoc.getTargetUuid()))
-                .map(assoc -> createReference(assoc))
-                .collect(Collectors.toList());
+                .map(this::createReference)
+                .toList();
     }
 
     private ListEntryComponent createReference(Association assoc) {
@@ -377,7 +378,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
             associations.stream().forEach(assoc -> {
                 assoc.setSourceUuid(assoc.getSourceUuid().replace(previousIdentifier, xdsObject.getEntryUuid()));
                 assoc.setTargetUuid(assoc.getTargetUuid().replace(previousIdentifier, xdsObject.getEntryUuid()));
-            });;
+            });
         }
         xdsObject.setAvailabilityStatus(AvailabilityStatus.APPROVED);
     }
@@ -395,7 +396,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                 associations.stream().forEach(as -> {
                     as.setSourceUuid(as.getSourceUuid().replace(previousIdentifier, assoc.getEntryUuid()));
                     as.setTargetUuid(as.getTargetUuid().replace(previousIdentifier, assoc.getEntryUuid()));
-                });;
+                });
             }
         }
     }

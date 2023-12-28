@@ -8,7 +8,6 @@ import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStat
 import java.util.Date;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.Address;
@@ -58,10 +57,10 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
         fhirDoc.getContext().setPracticeSetting(fromCode(xdsDoc.getPracticeSettingCode()));
         fhirDoc.getContext().setFacilityType(fromCode(xdsDoc.getHealthcareFacilityTypeCode()));
         fhirDoc.setSecurityLabel(
-                xdsDoc.getConfidentialityCodes().stream().map(this::fromCode).collect(Collectors.toList()));
+                xdsDoc.getConfidentialityCodes().stream().map(this::fromCode).toList());
         if (xdsDoc.getComments() != null)
             fhirDoc.setDescription(xdsDoc.getComments().getValue());
-        fhirDoc.getContext().setEvent(xdsDoc.getEventCodeList().stream().map(this::fromCode).collect(Collectors.toList()));
+        fhirDoc.getContext().setEvent(xdsDoc.getEventCodeList().stream().map(this::fromCode).toList());
         var attachment = fhirDoc.getContentFirstRep().getAttachment();
         attachment.setContentType(xdsDoc.getMimeType());
         if (xdsDoc.getTitle() != null)
@@ -70,7 +69,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
         attachment.setHashElement(new Base64BinaryType(xdsDoc.getHash()));
         attachment.setCreationElement(fromTimestamp(xdsDoc.getCreationTime()));
         attachment.setLanguage(xdsDoc.getLanguageCode());
-        attachment.setUrl(registryConfig.urlFrom(xdsDoc.getRepositoryUniqueId(), xdsDoc.getUniqueId())); // TODO: does not make too much sense.
+        attachment.setUrl(registryConfig.urlFrom(xdsDoc.getRepositoryUniqueId(), xdsDoc.getUniqueId()));
         fhirDoc.setDate(Date.from(xdsDoc.getCreationTime().getDateTime().toInstant()));
         var sourcePatientReference = new Reference();
         sourcePatientReference.setType(Patient.class.getSimpleName());
@@ -82,12 +81,12 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
         fhirDoc.getContext()
                 .setEncounter(xdsDoc.getReferenceIdList().stream()
                         .filter(refId -> ReferenceId.ID_TYPE_ENCOUNTER_ID.equals(refId.getIdTypeCode()))
-                        .map(fhirRef -> mapReferenceId(fhirRef)).collect(Collectors.toList()));
+                        .map(this::mapReferenceId).toList());
         fhirDoc.getContext()
                 .setRelated(xdsDoc.getReferenceIdList().stream()
                         .filter(refId -> !ReferenceId.ID_TYPE_ENCOUNTER_ID.equals(refId.getIdTypeCode()))
-                        .map(fhirRef -> mapReferenceId(fhirRef)).collect(Collectors.toList()));
-        fhirDoc.setAuthor(xdsDoc.getAuthors().stream().map(this::fromAuthor).collect(Collectors.toList()));
+                        .map(this::mapReferenceId).toList());
+        fhirDoc.setAuthor(xdsDoc.getAuthors().stream().map(this::fromAuthor).toList());
         if (xdsDoc.getLegalAuthenticator() != null && !xdsDoc.getLegalAuthenticator().isEmpty()) {
             fhirDoc.setAuthenticator(fromAuthenticator(xdsDoc.getLegalAuthenticator()));
         }

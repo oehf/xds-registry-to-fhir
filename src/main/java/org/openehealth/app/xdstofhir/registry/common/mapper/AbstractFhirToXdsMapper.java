@@ -6,19 +6,18 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.hl7.fhir.r4.model.BaseDateTimeType;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.ContactPoint;
+import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.r4.model.HumanName;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Practitioner;
 import org.hl7.fhir.r4.model.PractitionerRole;
 import org.hl7.fhir.r4.model.Reference;
-import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssigningAuthority;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
@@ -68,19 +67,18 @@ public abstract class AbstractFhirToXdsMapper {
         var xdsAuthor = new Author();
         Practitioner doc = null;
 
-        if (resource instanceof PractitionerRole) {
-            var fhirPractRole = (PractitionerRole)resource;
+        if (resource instanceof PractitionerRole fhirPractRole) {
             doc = (Practitioner) fhirPractRole.getPractitioner().getResource();
-            xdsAuthor.getAuthorRole().addAll(fhirPractRole.getCode().stream().map(this::fromCodeableConcept).collect(Collectors.toList()));
-            xdsAuthor.getAuthorSpecialty().addAll(fhirPractRole.getSpecialty().stream().map(this::fromCodeableConcept).collect(Collectors.toList()));
+            xdsAuthor.getAuthorRole().addAll(fhirPractRole.getCode().stream().map(this::fromCodeableConcept).toList());
+            xdsAuthor.getAuthorSpecialty().addAll(fhirPractRole.getSpecialty().stream().map(this::fromCodeableConcept).toList());
             fromOrganization((org.hl7.fhir.r4.model.Organization)fhirPractRole.getOrganization().getResource()).ifPresent(org -> xdsAuthor.getAuthorInstitution().add(org));
-        } else if (resource instanceof Practitioner) {
-            doc = (Practitioner)resource;
+        } else if (resource instanceof Practitioner docResource) {
+            doc = docResource;
         }
 
         if (doc != null) {
             xdsAuthor.setAuthorPerson(fromPractitioner(doc));
-            xdsAuthor.getAuthorTelecom().addAll(doc.getTelecom().stream().map(this::fromContact).collect(Collectors.toList()));
+            xdsAuthor.getAuthorTelecom().addAll(doc.getTelecom().stream().map(this::fromContact).toList());
         }
         return xdsAuthor;
     }

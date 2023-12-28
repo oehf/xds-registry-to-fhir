@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r4.model.CodeableConcept;
@@ -88,14 +87,13 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
                                         new CXiAssigningAuthority(id.getDisplay(),
                                                 urnDecodedScheme(id.getIdentifier().getSystem()), "ISO"),
                                         id.getType())));
-        doc.getAuthors().addAll(fhirDoc.getAuthor().stream().map(this::fromAuthor).collect(Collectors.toList()));
+        doc.getAuthors().addAll(fhirDoc.getAuthor().stream().map(this::fromAuthor).toList());
         mapServicePeriod(fhirDoc, doc);
         return doc;
     }
 
     private PatientInfo fromSourcePatient(Reference sourcePatientInfo) {
-        if (sourcePatientInfo.getResource() instanceof Patient) {
-            var sourcePatientFhirResource = (Patient) sourcePatientInfo.getResource();
+        if (sourcePatientInfo.getResource() instanceof Patient sourcePatientFhirResource) {
             PatientInfo patientInfo = new PatientInfo();
             if (sourcePatientFhirResource.getGender() != null) {
                 patientInfo.setGender((String) hl7v2FhirMapping.get(HL7V2FHIR_PATIENT_GENDER,
@@ -131,10 +129,10 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
     private Person fromAuthenticator(Reference authenticator) {
         var resource = authenticator.getResource();
         Practitioner doc = null;
-        if (resource instanceof PractitionerRole) {
-            doc = (Practitioner) ((PractitionerRole)resource).getPractitioner().getResource();
-        } else if (resource instanceof Practitioner) {
-            doc = (Practitioner)resource;
+        if (resource instanceof PractitionerRole pResource) {
+            doc = (Practitioner) pResource.getPractitioner().getResource();
+        } else if (resource instanceof Practitioner pResource) {
+            doc = pResource;
         }
         if (doc != null) {
             return fromPractitioner(doc);
@@ -155,7 +153,7 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
     }
 
     private List<Code> mapCodeList(List<CodeableConcept> codes) {
-        return codes.stream().map(CodeableConcept::getCodingFirstRep).map(this::fromCode).collect(Collectors.toList());
+        return codes.stream().map(CodeableConcept::getCodingFirstRep).map(this::fromCode).toList();
     }
 
 }

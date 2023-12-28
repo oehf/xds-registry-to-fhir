@@ -29,7 +29,7 @@ public class XdsSpringContext {
     private Resource hl7v2fhirMapping;
 
     @Bean(name = Bus.DEFAULT_BUS_ID)
-    public SpringBus springBus() {
+    SpringBus springBus() {
         var springBus = new SpringBus();
         var logging = new LoggingFeature();
         logging.setLogBinary(true);
@@ -41,7 +41,7 @@ public class XdsSpringContext {
     }
 
     @Bean
-    public IGenericClient fhirClient(@Value("${fhir.server.base}") String fhirServerBase) {
+    IGenericClient fhirClient(@Value("${fhir.server.base}") String fhirServerBase) {
         var ctx = FhirContext.forR4Cached();
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         var loggingInterceptor = new LoggingInterceptor();
@@ -55,7 +55,7 @@ public class XdsSpringContext {
     }
 
     @Bean
-    public CustomMappings customMapping() {
+    CustomMappings customMapping() {
         var mapping = new CustomMappings();
         mapping.setMappingResource(hl7v2fhirMapping);
         return mapping;
@@ -69,7 +69,7 @@ public class XdsSpringContext {
      */
     @ConditionalOnProperty(value = "fhir.server.profile.bootstrap", havingValue = "true", matchIfMissing = true)
     @Bean
-    public SmartInitializingSingleton createProfilesIfNeeded(IGenericClient fhirClient) {
+    SmartInitializingSingleton createProfilesIfNeeded(IGenericClient fhirClient) {
         return () -> {
             var builder = new BundleBuilder(fhirClient.getFhirContext());
             var fhirParser = fhirClient.getFhirContext().newJsonParser();
