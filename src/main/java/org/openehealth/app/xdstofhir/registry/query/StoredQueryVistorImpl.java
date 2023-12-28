@@ -6,6 +6,7 @@ import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.bui
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.entryUuidFrom;
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.map;
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.mapPatientIdToQuery;
+import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.mapStatus;
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.urnIdentifierList;
 
 import java.util.ArrayList;
@@ -70,7 +71,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
      * Hapi currently ignore "_list" parameter, workaround here with "_has" reverse chain search
      * https://github.com/hapifhir/hapi-fhir/issues/3761
      */
-    private static final String _HAS_LIST_ITEM_IDENTIFIER = "_has:List:item:identifier";
+    private static final String HAS_LIST_ITEM_IDENTIFIER = "_has:List:item:identifier";
 
 
     private final IGenericClient client;
@@ -100,6 +101,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     public void visit(FindFoldersQuery query) {
         var folderFhirQuery = initFolderQuery();
         mapPatientIdToQuery(query, folderFhirQuery);
+        map(query.getLastUpdateTime(), ListResource.DATE, folderFhirQuery);
+        mapStatus(query.getStatus(),ListResource.STATUS, folderFhirQuery);
         mapFolders(buildResultForFolder(folderFhirQuery));
     }
 
@@ -134,7 +137,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         var folderFhirQuery = initFolderQuery();
         var searchIdentifiers = urnIdentifierList(query);
         submissionSetfhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
-        var reverseSearchCriteria = Collections.singletonMap(_HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
+        var reverseSearchCriteria = Collections.singletonMap(HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
         documentFhirQuery.whereMap(reverseSearchCriteria);
         folderFhirQuery.whereMap(reverseSearchCriteria);
 
@@ -145,7 +148,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         mapAssociations(createAssociationsFrom(fhirSubmissions, fhirFolder));
         var fdDocAssoc = createAssociationsFrom(fhirFolder, fhirDocuments);
         mapAssociations(fdDocAssoc);
-        mapAssociations(createAssociationsFrom(fhirSubmissions, fdDocAssoc));
+        mapAssociations(createAssociationsBetween(fhirSubmissions, fdDocAssoc));
     }
 
     @Override
@@ -193,7 +196,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         var folderFhirQuery = initFolderQuery();
         var searchIdentifiers = urnIdentifierList(query);
         folderFhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
-        var reverseSearchCriteria = Collections.singletonMap(_HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
+        var reverseSearchCriteria = Collections.singletonMap(HAS_LIST_ITEM_IDENTIFIER, searchIdentifiers);
         documentFhirQuery.whereMap(reverseSearchCriteria);
         var fhirDocuments = mapDocuments(buildResultForDocuments(documentFhirQuery));
         var fhirFolder = mapFolders(buildResultForFolder(folderFhirQuery));
@@ -224,8 +227,30 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
     @Override
     public void visit(GetAssociationsQuery query) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        var xdsAssocations = new ArrayList<Association>();
+
+        var documentFhirQuery = initDocumentQuery();
+        documentFhirQuery.include(DocumentReference.INCLUDE_RELATESTO);
+        documentFhirQuery.revInclude(ListResource.INCLUDE_ITEM);
+        documentFhirQuery.where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN,
+                query.getUuids()));
+        xdsAssocations.addAll(collectAssociationsOfDocument(documentFhirQuery));
+
+        var folderFhirQuery = initFolderQuery();
+        folderFhirQuery.include(ListResource.INCLUDE_ITEM);
+        folderFhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN,
+                query.getUuids()));
+        xdsAssocations.addAll(collectAssociationsOfFolders(folderFhirQuery));
+
+        var submissionSetfhirQuery = initSubmissionSetQuery();
+        submissionSetfhirQuery.include(ListResource.INCLUDE_ITEM);
+        submissionSetfhirQuery.where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN,
+                query.getUuids()));
+        xdsAssocations.addAll(collectAssociationsOfSubmissionSet(submissionSetfhirQuery));
+
+        mapAssociations(xdsAssocations);
     }
+
 
     @Override
     public void visit(GetAllQuery query) {
@@ -233,8 +258,11 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         var submissionSetfhirQuery = initSubmissionSetQuery();
         var folderFhirQuery = initFolderQuery();
         mapPatientIdToQuery(query, documentFhirQuery);
+        mapStatus(query.getStatusDocuments(),DocumentReference.STATUS, documentFhirQuery);
         mapPatientIdToQuery(query, submissionSetfhirQuery);
+        mapStatus(query.getStatusSubmissionSets(),ListResource.STATUS, submissionSetfhirQuery);
         mapPatientIdToQuery(query, folderFhirQuery);
+        mapStatus(query.getStatusFolders(),ListResource.STATUS, folderFhirQuery);
         var fhirDocuments = mapDocuments(buildResultForDocuments(documentFhirQuery));
         var fhirSubmissions = mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery));
         var fhirFolder = mapFolders(buildResultForFolder(folderFhirQuery));
@@ -242,7 +270,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         mapAssociations(createAssociationsFrom(fhirSubmissions, fhirFolder));
         var fdDocAssoc = createAssociationsFrom(fhirFolder, fhirDocuments);
         mapAssociations(fdDocAssoc);
-        mapAssociations(createAssociationsFrom(fhirSubmissions, fdDocAssoc));
+        mapAssociations(createAssociationsBetween(fhirSubmissions, fdDocAssoc));
         mapAssociations(createAssociationsBetween(fhirDocuments));
     }
 
@@ -250,6 +278,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     public void visit(FindSubmissionSetsQuery query) {
         var submissionSetfhirQuery = initSubmissionSetQuery();
         mapPatientIdToQuery(query, submissionSetfhirQuery);
+        map(query.getSubmissionTime(), ListResource.DATE, submissionSetfhirQuery);
+        mapStatus(query.getStatus(),ListResource.STATUS, submissionSetfhirQuery);
         if (query.getSourceIds() != null && !query.getSourceIds().isEmpty())
             submissionSetfhirQuery.where(new TokenClientParam("sourceId").exactly().codes(query.getSourceIds()));
         mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery));
@@ -276,14 +306,78 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
     }
 
-    private Iterable<DocumentReference> buildResultForDocuments(IQuery<Bundle> documentFhirQuery) {
-        return () -> new PagingFhirResultIterator<DocumentReference>(documentFhirQuery.execute(),
+    private Iterable<DocumentReference> buildResultForDocuments(Bundle documentSearchResult) {
+        return () -> new PagingFhirResultIterator<DocumentReference>(documentSearchResult,
                 DocumentReference.class);
+    }
+
+    private Iterable<DocumentReference> buildResultForDocuments(IQuery<Bundle> documentFhirQuery) {
+        return buildResultForDocuments(documentFhirQuery.execute());
     }
 
     private Iterable<MhdSubmissionSet> buildResultForSubmissionSet(IQuery<Bundle> submissionSetfhirQuery) {
         return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(),
                 MhdSubmissionSet.class);
+    }
+
+    private List<Association> collectAssociationsOfSubmissionSet(
+            IQuery<Bundle> submissionSetfhirQuery) {
+        var xdsAssocations = new ArrayList<Association>();
+        var resultForSubmissionSet = buildResultForSubmissionSet(submissionSetfhirQuery);
+        resultForSubmissionSet.forEach(submission -> {
+            submission.getEntry().forEach(entry -> {
+                var assocEntryUuid = entry.getId() != null ? entry.getId() : new URN(UUID.randomUUID()).toString();
+                if (entry.getItem().getResource() != null) {
+                    xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, assocEntryUuid,
+                            entryUuidFrom(submission), entryUuidFrom(entry.getItem().getResource())));
+                } else if (entry.getItem().getIdentifier() != null){
+                    xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, assocEntryUuid,
+                            entryUuidFrom(submission),entry.getItem().getIdentifier().getValue()));
+                }
+            });
+        });
+        return xdsAssocations;
+    }
+
+
+    private List<Association> collectAssociationsOfFolders(IQuery<Bundle> folderFhirQuery) {
+        var xdsAssocations = new ArrayList<Association>();
+        var resultForFolder = buildResultForFolder(folderFhirQuery);
+        resultForFolder.forEach(folder -> {
+            folder.getEntry().forEach(entry -> {
+                if (entry.getItem().getResource() instanceof DocumentReference folderDoc) {
+                    var assocEntryUuid = entry.getId() != null ? entry.getId() : new URN(UUID.randomUUID()).toString();
+                    xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, assocEntryUuid,
+                            entryUuidFrom(folder), entryUuidFrom(folderDoc)));
+                }
+            });
+        });
+        return xdsAssocations;
+    }
+
+
+    private List<Association> collectAssociationsOfDocument(IQuery<Bundle> documentFhirQuery) {
+        var xdsAssocations = new ArrayList<Association>();
+        Bundle docResultBundle = documentFhirQuery.execute();
+        var resultForDocuments = buildResultForDocuments(docResultBundle);
+
+        resultForDocuments.forEach(doc -> {
+            var listResources = BundleUtil.toListOfResourcesOfType(client.getFhirContext(), docResultBundle, ListResource.class);
+            listResources.stream().filter(list -> list.getEntry().stream().anyMatch(entry -> doc.equals(entry.getItem().getResource()))).forEach(submission -> {
+                xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, new URN(UUID.randomUUID()).toString(),
+                        entryUuidFrom(submission), entryUuidFrom(doc)));
+            });
+            doc.getRelatesTo().forEach(related -> {
+                if (related.getTarget().getResource() instanceof DocumentReference relatedDoc) {
+                    var assocEntryUuid = related.getId() != null ? related.getId()
+                            : new URN(UUID.randomUUID()).toString();
+                    var type = MappingSupport.DOC_DOC_XDS_ASSOCIATIONS.get(related.getCode());
+                    xdsAssocations
+                            .add(new Association(type, assocEntryUuid, entryUuidFrom(doc), entryUuidFrom(relatedDoc)));
+                }
+            });
+        });
+        return xdsAssocations;
     }
 
     private IQuery<Bundle> prepareQuery(FindDocumentsQuery query) {
@@ -295,7 +389,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         map(query.getPracticeSettingCodes(),DocumentReference.SETTING, documentFhirQuery);
         map(query.getHealthcareFacilityTypeCodes(),DocumentReference.FACILITY, documentFhirQuery);
         map(query.getFormatCodes(),DocumentReference.FORMAT, documentFhirQuery);
-        map(query.getStatus(), documentFhirQuery);
+        mapStatus(query.getStatus(),DocumentReference.STATUS, documentFhirQuery);
         map(query.getEventCodes(), DocumentReference.EVENT, documentFhirQuery);
         map(query.getConfidentialityCodes(), DocumentReference.SECURITY_LABEL, documentFhirQuery);
         map(query.getCreationTime(), DocumentReference.DATE, documentFhirQuery);
@@ -397,7 +491,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return xdsAssocations;
     }
 
-    private Collection<Association> createAssociationsFrom(List<MhdSubmissionSet> fhirSubmissions,
+    private Collection<Association> createAssociationsBetween(List<MhdSubmissionSet> fhirSubmissions,
             Collection<Association> fdDocAssoc) {
         var xdsAssocations = new ArrayList<Association>();
         for (var list : fhirSubmissions) {

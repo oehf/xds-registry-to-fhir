@@ -56,7 +56,6 @@ mvn clean spring-boot:run -Pboot
 ## Not yet implemented
 The application is not yet intended as a production ready application.
 
-* Implemented profiles are not feature complete, e.g. ITI-18 only implement a some of the xds queries.
 * Security concerns are not yet covered (e.g. https, mllps, SAML, audit, ...)
 * More testing
 * IHE compliance test (using the [XDS Toolkit](https://github.com/usnistgov/iheos-toolkit2))

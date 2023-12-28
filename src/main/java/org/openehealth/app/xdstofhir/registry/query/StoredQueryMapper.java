@@ -50,14 +50,14 @@ public class StoredQueryMapper {
         }
     }
 
-    public static void map(List<AvailabilityStatus> status, IQuery<Bundle> fhirQuery) {
+    public static void mapStatus(List<AvailabilityStatus> status, TokenClientParam param, IQuery<Bundle> fhirQuery) {
         List<String> fhirStatus = status.stream()
                 .map(MappingSupport.STATUS_MAPPING_FROM_XDS::get)
                 .filter(Objects::nonNull)
                 .map(DocumentReferenceStatus::toCode)
                 .toList();
         if (!fhirStatus.isEmpty())
-            fhirQuery.where(DocumentReference.STATUS.exactly().codes(fhirStatus));
+            fhirQuery.where(param.exactly().codes(fhirStatus));
     }
 
     public static void map (QueryList<Code> codes, TokenClientParam param, IQuery<Bundle> fhirQuery) {

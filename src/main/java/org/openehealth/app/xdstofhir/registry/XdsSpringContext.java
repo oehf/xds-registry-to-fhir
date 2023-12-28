@@ -12,6 +12,9 @@ import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
 import org.apache.cxf.bus.spring.SpringBus;
 import org.apache.cxf.ext.logging.LoggingFeature;
+import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
+import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.spring.map.config.CustomMappings;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +46,8 @@ public class XdsSpringContext {
     @Bean
     IGenericClient fhirClient(@Value("${fhir.server.base}") String fhirServerBase) {
         var ctx = FhirContext.forR4Cached();
+        ctx.setDefaultTypeForProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE, MhdFolder.class);
+        ctx.setDefaultTypeForProfile(MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE, MhdSubmissionSet.class);
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         var loggingInterceptor = new LoggingInterceptor();
         loggingInterceptor.setLogRequestSummary(true);
