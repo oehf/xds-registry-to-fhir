@@ -222,6 +222,9 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                 .filter(assoc -> DOC_DOC_FHIR_ASSOCIATIONS.containsKey(assoc.getAssociationType()))
                 .map(assoc -> {
                     var result = lookupExistingDocument(assoc.getTargetUuid());
+                    if (!result.getStatus().equals(DocumentReferenceStatus.CURRENT)) {
+                        throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, assoc.getTargetUuid());
+                    }
                     var ref = new DocumentReferenceRelatesToComponent();
                     ref.setCode(DOC_DOC_FHIR_ASSOCIATIONS.get(assoc.getAssociationType()));
                     ref.setTarget(new Reference(result));
