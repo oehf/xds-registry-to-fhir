@@ -10,7 +10,6 @@ import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.map
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.urnIdentifierList;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -288,14 +287,14 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     @Override
     public void visit(FindDocumentsByReferenceIdQuery query) {
         var documentFhirQuery = prepareQuery(query);
-        // TODO: Not yet working as expected
         if (query.getReferenceIds() != null){
             var searchToken = query.getTypedReferenceIds().getOuterList().stream()
                     .flatMap(List::stream)
                     .map(StoredQueryMapper::asSearchToken)
                     .toList();
+
             if (!searchToken.isEmpty()) {
-                documentFhirQuery.where(DocumentReference.RELATED.hasAnyOfIds(searchToken));
+                documentFhirQuery.where(new TokenClientParam("related:identifier").exactly().codes(searchToken));
             }
         }
         mapDocuments(buildResultForDocuments(documentFhirQuery));
@@ -472,7 +471,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         }
     }
 
-    private Collection<Association> createAssociationsBetween(List<DocumentReference> fhirDocuments) {
+    private List<Association> createAssociationsBetween(List<DocumentReference> fhirDocuments) {
         var xdsAssocations = new ArrayList<Association>();
         for (var doc : fhirDocuments) {
             for (var related : doc.getRelatesTo()) {
@@ -491,8 +490,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return xdsAssocations;
     }
 
-    private Collection<Association> createAssociationsBetween(List<MhdSubmissionSet> fhirSubmissions,
-            Collection<Association> fdDocAssoc) {
+    private List<Association> createAssociationsBetween(List<MhdSubmissionSet> fhirSubmissions,
+            List<Association> fdDocAssoc) {
         var xdsAssocations = new ArrayList<Association>();
         for (var list : fhirSubmissions) {
             for (var entry : list.getEntry()) {
@@ -515,7 +514,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return xdsAssocations;
     }
 
-    private Collection<Association> createAssociationsFrom(List<? extends ListResource> lists,
+    private List<Association> createAssociationsFrom(List<? extends ListResource> lists,
             List<? extends DomainResource> fhirResource) {
         var xdsAssocations = new ArrayList<Association>();
         for (var list : lists) {
@@ -559,7 +558,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return processedFhirFolders;
     }
 
-    private void mapAssociations(Collection<Association> associations) {
+    private void mapAssociations(List<Association> associations) {
         if (isObjectRefResult)
             response.getReferences().addAll(associations.stream()
                     .map(assoc -> new ObjectReference(assoc.getEntryUuid())).toList());
