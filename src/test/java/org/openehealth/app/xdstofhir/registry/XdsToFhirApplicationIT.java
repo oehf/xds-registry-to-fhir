@@ -8,7 +8,6 @@ import static org.openehealth.ipf.commons.ihe.xds.core.responses.Status.SUCCESS;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.parser.PipeParser;
@@ -18,13 +17,17 @@ import org.junit.jupiter.api.Test;
 import org.openehealth.app.xdstofhir.registry.patientfeed.Iti8Service;
 import org.openehealth.app.xdstofhir.registry.query.Iti18Service;
 import org.openehealth.app.xdstofhir.registry.register.Iti42Service;
+import org.openehealth.app.xdstofhir.registry.remove.Iti62Service;
 import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssigningAuthority;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.ObjectReference;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.QueryRegistry;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.RemoveMetadata;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.builder.RegisterDocumentSetBuilder;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindSubmissionSetsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.GetAllQuery;
@@ -46,6 +49,9 @@ class XdsToFhirApplicationIT {
     @Produce("xds-iti42://localhost:{{local.server.port}}/services/registry/iti42")
     Iti42Service registerDocuments;
 
+    @Produce("rmd-iti62://localhost:{{local.server.port}}/services/registry/iti62")
+    Iti62Service removeDocuments;
+
     @Produce("xds-iti8:0.0.0.0:2575")
     Iti8Service patientIdentityFeed;
 
@@ -61,8 +67,6 @@ class XdsToFhirApplicationIT {
                 new AssigningAuthority("2.999.1.2.3.4"));
 
         patientIdentityFeed.registerPatient(somePatientFromMPI(patientId));
-
-        TimeUnit.SECONDS.sleep(2); //TODO: Kodjin seems to need a short delay before the resource can be used
 
         registerSampleDocForPatient(patientId);
 
@@ -118,6 +122,31 @@ class XdsToFhirApplicationIT {
         assertEquals(FAILURE, registerResponse.getStatus());
         assertEquals(1,registerResponse.getErrors().size());
         assertEquals(ErrorCode.UNKNOWN_REPOSITORY_ID, registerResponse.getErrors().get(0).getErrorCode());
+    }
+
+    @Test
+    void removeDocument() {
+        var patientId = new Identifiable("IPF-" + System.currentTimeMillis(),
+                new AssigningAuthority("2.999.1.2.3.4"));
+
+        patientIdentityFeed.registerPatient(somePatientFromMPI(patientId));
+
+        var doc = SampleData.createDocumentEntry(patientId);
+        doc.assignEntryUuid();
+        var sub = SampleData.createSubmissionSet(patientId);
+        sub.assignEntryUuid();
+        var register = new RegisterDocumentSetBuilder(true, sub).withDocument(doc).build();
+        registerDocuments.processRegister(register);
+
+        var metadataRequest = new RemoveMetadata();
+        metadataRequest.getReferences().add(new ObjectReference(doc.getEntryUuid()));
+        metadataRequest.getReferences().add(new ObjectReference(sub.getEntryUuid()));
+        register.getAssociations()
+                .forEach(assoc -> metadataRequest.getReferences().add(new ObjectReference(assoc.getEntryUuid())));
+
+        var response = removeDocuments.remove(metadataRequest);
+        assertEquals(SUCCESS, response.getStatus());
+
     }
 
     private QueryResponse findDocumentFor(Identifiable patientId) {

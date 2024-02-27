@@ -11,9 +11,7 @@ import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.urn
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
@@ -24,12 +22,12 @@ import ca.uhn.fhir.rest.gclient.TokenClientParam;
 import ca.uhn.fhir.util.BundleUtil;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hl7.fhir.instance.model.api.IBaseBundle;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.DomainResource;
 import org.hl7.fhir.r4.model.ListResource;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.PagingFhirResultIterator;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.core.URN;
@@ -302,12 +300,12 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
 
     private Iterable<MhdFolder> buildResultForFolder(IQuery<Bundle> folderFhirQuery) {
-        return () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class);
+        return () -> new PagingFhirResultIterator<MhdFolder>(folderFhirQuery.execute(), MhdFolder.class, client);
     }
 
     private Iterable<DocumentReference> buildResultForDocuments(Bundle documentSearchResult) {
         return () -> new PagingFhirResultIterator<DocumentReference>(documentSearchResult,
-                DocumentReference.class);
+                DocumentReference.class, client);
     }
 
     private Iterable<DocumentReference> buildResultForDocuments(IQuery<Bundle> documentFhirQuery) {
@@ -316,7 +314,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
     private Iterable<MhdSubmissionSet> buildResultForSubmissionSet(IQuery<Bundle> submissionSetfhirQuery) {
         return () -> new PagingFhirResultIterator<MhdSubmissionSet>(submissionSetfhirQuery.execute(),
-                MhdSubmissionSet.class);
+                MhdSubmissionSet.class, client);
     }
 
     private List<Association> collectAssociationsOfSubmissionSet(
@@ -421,54 +419,6 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .include(DocumentReference.INCLUDE_SUBJECT)
                 .returnBundle(Bundle.class);
-    }
-
-
-    /**
-     * Lazy Fhir Page Iterator. Fetches the next result page when the iterator has loaded the last element.
-     *
-     * @param <T>
-     */
-    public class PagingFhirResultIterator<T extends DomainResource> implements Iterator<T> {
-
-        private Bundle resultBundle;
-        private final Class<T> resultTypeClass;
-        private int currentIteratorIndex = 0;
-
-        public PagingFhirResultIterator(Bundle resultBundle, Class<T> resultTypeClass) {
-            this.resultBundle = resultBundle;
-            this.resultTypeClass = resultTypeClass;
-        }
-
-        @Override
-        public boolean hasNext() {
-            if (currentIteratorIndex == getResourcesFromBundle().size()) {
-                nextPageIfAvailable();
-            }
-            return currentIteratorIndex < getResourcesFromBundle().size();
-        }
-
-        private void nextPageIfAvailable() {
-            if (resultBundle.getLink(IBaseBundle.LINK_NEXT) != null) {
-                resultBundle = client.loadPage().next(resultBundle).execute();
-                currentIteratorIndex = 0;
-            }
-        }
-
-        @Override
-        public T next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException("No more elements present.");
-            }
-            T result = getResourcesFromBundle().get(currentIteratorIndex);
-            currentIteratorIndex++;
-            return result;
-        }
-
-        private List<T> getResourcesFromBundle(){
-            return BundleUtil.toListOfResourcesOfType(client.getFhirContext(),
-                    resultBundle, resultTypeClass);
-        }
     }
 
     private List<Association> createAssociationsBetween(List<DocumentReference> fhirDocuments) {
