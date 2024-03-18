@@ -11,6 +11,11 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindMedicationTre
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindPrescriptionsForDispenseQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindPrescriptionsForValidationQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindPrescriptionsQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.SubscriptionForDocumentEntryQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.SubscriptionForFolderQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.SubscriptionForPatientIndependentDocumentEntryQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.SubscriptionForPatientIndependentSubmissionSetQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.SubscriptionForSubmissionSetQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.Query.Visitor;
 
 /**
@@ -75,5 +80,35 @@ public abstract class AbstractStoredQueryVisitor implements Visitor {
     @Override
     public void visit(FindDocumentsByTitleQuery query) {
         throw new UnsupportedOperationException("Gematik ePA query not yet supported");
+    }
+
+
+    @Override
+    public void visit(SubscriptionForDocumentEntryQuery arg0) {
+        throw new UnsupportedOperationException("DSUB query not yet supported");
+    }
+
+
+    @Override
+    public void visit(SubscriptionForFolderQuery arg0) {
+        throw new UnsupportedOperationException("DSUB query not yet supported");
+    }
+
+
+    @Override
+    public void visit(SubscriptionForPatientIndependentDocumentEntryQuery arg0) {
+        throw new UnsupportedOperationException("DSUB query not yet supported");
+    }
+
+
+    @Override
+    public void visit(SubscriptionForSubmissionSetQuery arg0) {
+        throw new UnsupportedOperationException("DSUB query not yet supported");
+    }
+
+
+    @Override
+    public void visit(SubscriptionForPatientIndependentSubmissionSetQuery arg0) {
+        throw new UnsupportedOperationException("DSUB query not yet supported");
     }
 }
