@@ -29,6 +29,7 @@ import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToCompone
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.Identifier.IdentifierUse;
 import org.hl7.fhir.r4.model.ListResource;
 import org.hl7.fhir.r4.model.ListResource.ListEntryComponent;
 import org.hl7.fhir.r4.model.Patient;
@@ -297,8 +298,14 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     }
 
     private ListEntryComponent createReference(Association assoc, String refType) {
-        var ref = new ListEntryComponent(new Reference(
-                new IdType(refType, assoc.getTargetUuid())));
+        Reference item = new Reference(
+                new IdType(refType, assoc.getTargetUuid()));
+        var id = new Identifier();
+        id.setSystem(MappingSupport.URI_URN);
+        id.setValue(assoc.getEntryUuid());
+        id.setUse(IdentifierUse.SECONDARY);
+        item.setIdentifier(id);
+        var ref = new ListEntryComponent(item);
         ref.setId(assoc.getEntryUuid());
         return ref;
     }
@@ -316,7 +323,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
 
     private ListEntryComponent createReference(Association assoc) {
         var ref = new Reference();
-        Identifier id = new Identifier();
+        var id = new Identifier();
         id.setSystem(MappingSupport.URI_URN);
         id.setValue(assoc.getTargetUuid());
         ref.setIdentifier(id);
