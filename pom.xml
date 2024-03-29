@@ -22,6 +22,7 @@
         <cxf.version>3.6.3</cxf.version>
         <spring-framework.version>5.3.33</spring-framework.version>
         <json-path.version>2.9.0</json-path.version>
+        <tomcat.version>9.0.87</tomcat.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -51,7 +52,21 @@
                 <artifactId>json-path</artifactId>
                 <version>${json-path.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
