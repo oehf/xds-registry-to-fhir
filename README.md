@@ -18,6 +18,8 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 (default endpoint: http://localhost:8081/services/registry/iti42)
 * [ITI-18](https://profiles.ihe.net/ITI/TF/Volume2/ITI-18.html) to query documents from the registry  
 (default endpoint: http://localhost:8081/services/registry/iti18)
+* [ITI-62](https://profiles.ihe.net/ITI/TF/Volume2/ITI-62.html) to remove document metadata from the registry  
+(default endpoint: http://localhost:8081/services/registry/iti62)
 * [ITI-8](https://profiles.ihe.net/ITI/TF/Volume2/ITI-8.html) to receive a patient-identity-feed and make sure the patient exists  
 (default endpoint: MLLP Port 2575)
 
@@ -41,7 +43,7 @@ mvn failsafe:integration-test -Pit-tests
 ```
 
 ## Run
-The CI build push the container to [dockerhub](https://hub.docker.com/r/thopap/xds-registry-to-fhir). To pull the latest image an e.g. configure the public firely FHIR server, run:
+The CI build push the container to [dockerhub](https://hub.docker.com/r/thopap/xds-registry-to-fhir). To pull the latest image an e.g. configure the public [firely](https://fire.ly/) FHIR server, run:
 
 ```
 docker run -it -p8080:8080 registry.hub.docker.com/thopap/xds-registry-to-fhir -e FHIR_SERVER_BASE=https://server.fire.ly
@@ -59,4 +61,3 @@ The application is not yet intended as a production ready application.
 * Security concerns are not yet covered (e.g. https, mllps, SAML, audit, ...)
 * More testing
 * IHE compliance test (using the [XDS Toolkit](https://github.com/usnistgov/iheos-toolkit2))
-* Tests against fhir server beyond hapi
