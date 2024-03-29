@@ -48,7 +48,9 @@ public class RemoveDocumentsProcessor implements Iti62Service {
 
         var docBundleResult = client.search().forResource(DocumentReference.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_PROFILE)
-                .revInclude(DocumentReference.INCLUDE_RELATESTO)
+                .include(DocumentReference.INCLUDE_RELATESTO)
+                .revInclude(ListResource.INCLUDE_ITEM)
+                .revInclude(DocumentReference.INCLUDE_RELATED)
                 .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN,uuidsToDelete))
                 .returnBundle(Bundle.class)
                 .execute();
