@@ -46,7 +46,7 @@ mvn failsafe:integration-test -Pit-tests
 The CI build push the container to [dockerhub](https://hub.docker.com/r/thopap/xds-registry-to-fhir). To pull the latest image an e.g. configure the public [firely](https://fire.ly/) FHIR server, run:
 
 ```
-docker run -it -p8080:8080 registry.hub.docker.com/thopap/xds-registry-to-fhir -e FHIR_SERVER_BASE=https://server.fire.ly
+docker run -it -p8081:8081 registry.hub.docker.com/thopap/xds-registry-to-fhir -e FHIR_SERVER_BASE=https://server.fire.ly
 ```
 
 Start application with maven runner:
