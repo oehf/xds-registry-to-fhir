@@ -20,7 +20,7 @@
         <mockserver.version>5.15.0</mockserver.version>
         <!-- resolve vulnerabilities -->
         <cxf.version>3.6.3</cxf.version>
-        <spring-framework.version>5.3.33</spring-framework.version>
+        <spring-framework.version>5.3.34</spring-framework.version>
         <json-path.version>2.9.0</json-path.version>
         <tomcat.version>9.0.87</tomcat.version>
     </properties>
