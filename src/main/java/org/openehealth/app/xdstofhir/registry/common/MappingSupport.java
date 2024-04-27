@@ -27,6 +27,7 @@ public class MappingSupport {
     public static final String MHD_COMPREHENSIVE_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference";
     public static final String MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet";
     public static final String MHD_COMPREHENSIVE_FOLDER_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.Folder";
+    public static final String MHD_COMPREHENSIVE_PROVIDE_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.ProvideBundle";
 
     public static final Map<Precision, TemporalPrecisionEnum> PRECISION_MAP_FROM_XDS = new EnumMap<>(
             Map.of(Precision.DAY, TemporalPrecisionEnum.DAY,

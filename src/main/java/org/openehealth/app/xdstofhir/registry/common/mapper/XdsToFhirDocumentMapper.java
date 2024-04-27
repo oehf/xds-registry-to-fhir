@@ -5,7 +5,6 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.MHD_C
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
 
-import java.util.Date;
 import java.util.List;
 import java.util.function.BiFunction;
 
@@ -67,10 +66,11 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
             attachment.setTitle(xdsDoc.getTitle().getValue());
         attachment.setSize(xdsDoc.getSize().intValue());
         attachment.setHashElement(new Base64BinaryType(xdsDoc.getHash()));
-        attachment.setCreationElement(fromTimestamp(xdsDoc.getCreationTime()));
+        var fromTimestamp = fromTimestamp(xdsDoc.getCreationTime());
+        attachment.setCreationElement(fromTimestamp);
         attachment.setLanguage(xdsDoc.getLanguageCode());
         attachment.setUrl(registryConfig.urlFrom(xdsDoc.getRepositoryUniqueId(), xdsDoc.getUniqueId()));
-        fhirDoc.setDate(Date.from(xdsDoc.getCreationTime().getDateTime().toInstant()));
+        fhirDoc.setDate(fromTimestamp.getValue());
         var sourcePatientReference = new Reference();
         sourcePatientReference.setType(Patient.class.getSimpleName());
         sourcePatientReference.setIdentifier(fromIdentifier(xdsDoc.getSourcePatientId()));

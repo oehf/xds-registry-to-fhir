@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.r4.model.CanonicalType;
 import org.hl7.fhir.r4.model.DocumentReference;
 import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
 import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
@@ -80,6 +81,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         assignRegistryValues(register.getAssociations());
         var builder = new BundleBuilder(client.getFhirContext());
         evaluateDocumentReplacement(register, builder);
+        builder.setMetaField("profile", new CanonicalType(MappingSupport.MHD_COMPREHENSIVE_PROVIDE_PROFILE));
 
         var docReferences = createDocToDocReferences(register.getAssociations());
 
