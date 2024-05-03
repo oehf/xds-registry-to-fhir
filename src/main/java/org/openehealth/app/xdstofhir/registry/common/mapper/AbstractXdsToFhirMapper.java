@@ -77,7 +77,7 @@ public abstract class AbstractXdsToFhirMapper {
     protected Reference fromAuthor(final Author author) {
         var role = new PractitionerRole();
         var doc = new Practitioner();
-        if(!author.getAuthorPerson().isEmpty()) {
+        if((author.getAuthorPerson() != null) && !author.getAuthorPerson().isEmpty()) {
             if (!author.getAuthorPerson().getName().isEmpty())
                 doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));
             if (!author.getAuthorPerson().getId().isEmpty())
