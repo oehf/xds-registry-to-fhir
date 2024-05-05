@@ -25,7 +25,7 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 
 ## Build
 
-Build:
+Build (Java 21)
 
 ```
 mvn clean install
