@@ -1,0 +1,32 @@
+# Local Deployment of MS FHIR R4 server with a SQL Server backend 
+# (not public MS FHIR Server seems to be available)
+#
+# Connect with XDS Registry by configuring "fhir.server.base=http://localhost:8082"
+#
+
+version: "3"
+services:
+  fhir-api:
+    image: "mcr.microsoft.com/healthcareapis/r4-fhir-server"
+    restart: on-failure
+    environment:
+      FHIRServer__Security__Enabled: "false"
+      SqlServer__ConnectionString: "Server=tcp:sql,1433;Initial Catalog=FHIR;Persist Security Info=False;User ID=sa;Password=testtest12!;MultipleActiveResultSets=False;Connection Timeout=30;TrustServerCertificate=true;"
+      SqlServer__AllowDatabaseCreation: "true"
+      SqlServer__Initialize: "true"
+      SqlServer__SchemaOptions__AutomaticUpdatesEnabled: "true"
+      DataStore: "SqlServer"
+    ports:     
+      - "8082:8080"
+    depends_on:
+      - sql
+  sql:
+    image: "mcr.microsoft.com/mssql/server"
+    environment:
+      SA_PASSWORD: testtest12!
+      ACCEPT_EULA: "Y"
+    healthcheck:
+        test: ["CMD", "/opt/mssql-tools/bin/sqlcmd","-U sa -P testtest12! -Q 'SELECT * FROM INFORMATION_SCHEMA.TABLES'"]
+        interval: 10s
+        timeout: 10s
+        retries: 6

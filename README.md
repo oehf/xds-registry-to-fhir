@@ -23,9 +23,20 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 * [ITI-8](https://profiles.ihe.net/ITI/TF/Volume2/ITI-8.html) to receive a patient-identity-feed and make sure the patient exists  
 (default endpoint: MLLP Port 2575)
 
+## FHIR Server Compatibility
+
+This XDS registry requires a full featured FHIR R4 server. 
+The following were tested so far:
+
+* [Firely Server](https://fire.ly/products/firely-server/)
+* [HAPI FHIR](https://github.com/hapifhir/hapi-fhir) (Smile CDR) *
+* [Microsoft FHIR Server](https://github.com/microsoft/fhir-server) *
+
+\* *Because ":identifier" modifier search is not yet supported by these (HAPI + MS) FHIR Server, ITI-62 and FindDocumentsByReferenceId are known to be not working*
+
 ## Build
 
-Build (Java 21)
+Build (requires Maven 3.9 and Java 21)
 
 ```
 mvn clean install
@@ -59,5 +70,3 @@ mvn clean spring-boot:run -Pboot
 The application is not yet intended as a production ready application.
 
 * Security concerns are not yet covered (e.g. https, mllps, SAML, audit, ...)
-* More testing
-* IHE compliance test (using the [XDS Toolkit](https://github.com/usnistgov/iheos-toolkit2))
