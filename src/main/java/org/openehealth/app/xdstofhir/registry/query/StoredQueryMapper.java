@@ -117,7 +117,7 @@ public class StoredQueryMapper {
         var patientId = query.getPatientId();
 
         var identifier = DocumentReference.PATIENT
-                .hasChainedProperty(Patient.IDENTIFIER.exactly().systemAndIdentifier(
+                .hasChainedProperty("Patient", Patient.IDENTIFIER.exactly().systemAndIdentifier(
                         OID_URN + patientId.getAssigningAuthority().getUniversalId(), patientId.getId()));
         fhirQuery.where(identifier);
     }
