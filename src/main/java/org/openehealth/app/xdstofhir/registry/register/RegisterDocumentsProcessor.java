@@ -300,7 +300,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
     }
 
     private ListEntryComponent createReference(Association assoc, String refType) {
-        Reference item = new Reference(
+        var item = new Reference(
                 new IdType(refType, assoc.getTargetUuid()));
         var id = new Identifier();
         id.setSystem(MappingSupport.URI_URN);

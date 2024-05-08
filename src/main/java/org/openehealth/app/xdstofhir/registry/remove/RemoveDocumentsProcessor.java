@@ -70,9 +70,9 @@ public class RemoveDocumentsProcessor implements Iti62Service {
 
         uniqueResults.addAll(fetchFolderAndSubmissionSets(uuidsToDelete));
 
-        uniqueResults.forEach(ref -> {
-            processAssociations(ref, ref.getEntry(), uuidsToDelete, builder);
-        });
+        uniqueResults.forEach(ref ->
+            processAssociations(ref, ref.getEntry(), uuidsToDelete, builder)
+        );
 
         uniqueResults.forEach(ref -> {
             boolean toDeleteTransaction = addToDeleteTransaction(ref, uuidsToDelete, builder);

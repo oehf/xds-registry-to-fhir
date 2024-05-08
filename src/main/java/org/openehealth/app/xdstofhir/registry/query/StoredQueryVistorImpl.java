@@ -107,10 +107,13 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     public void visit(GetSubmissionSetsQuery query) {
         var submissionSetfhirQuery = initSubmissionSetQuery();
         var searchIdentifiers = query.getUuids().stream().map(MappingSupport::toUrnCoded).toList();
-        submissionSetfhirQuery.where(ListResource.ITEM.hasChainedProperty(
+        submissionSetfhirQuery.where(ListResource.ITEM. hasChainedProperty("DocumentReference",
                 new TokenClientParam("identifier").exactly().systemAndValues(URI_URN, searchIdentifiers)));
-        buildResultForSubmissionSet(submissionSetfhirQuery);
         var mapSubmissionSets = mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery));
+        submissionSetfhirQuery = initSubmissionSetQuery();
+        submissionSetfhirQuery.where(ListResource.ITEM. hasChainedProperty("List",
+                new TokenClientParam("identifier").exactly().systemAndValues(URI_URN, searchIdentifiers)));
+        mapSubmissionSets.addAll(mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery)));
 
         var documentFhirQuery = initDocumentQuery();
         documentFhirQuery.where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, searchIdentifiers));
@@ -181,7 +184,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     public void visit(GetFoldersForDocumentQuery query) {
         var folderFhirQuery = initFolderQuery();
         var identifier = MappingSupport.toUrnCoded(Objects.requireNonNullElse(query.getUniqueId(), query.getUuid()));
-        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
+        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty("DocumentReference", DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, identifier)));
         mapFolders(buildResultForFolder(folderFhirQuery));
     }
 
@@ -208,12 +211,12 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         var fhirDocuments = mapDocuments(buildResultForDocuments(documentFhirQuery));
 
         var folderFhirQuery = initFolderQuery();
-        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty(identifier));
+        folderFhirQuery.where(ListResource.ITEM.hasChainedProperty("DocumentReference", identifier));
         List<MhdFolder> folders = new ArrayList<>();
         buildResultForFolder(folderFhirQuery).iterator().forEachRemaining(folders::add);
 
         var submissionSetfhirQuery = initSubmissionSetQuery();
-        submissionSetfhirQuery.where(ListResource.ITEM.hasChainedProperty(identifier));
+        submissionSetfhirQuery.where(ListResource.ITEM.hasChainedProperty("DocumentReference", identifier));
         List<MhdSubmissionSet> submissionSets = new ArrayList<>();
         buildResultForSubmissionSet(submissionSetfhirQuery).iterator().forEachRemaining(submissionSets::add);
 
@@ -355,7 +358,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
     private List<Association> collectAssociationsOfDocument(IQuery<Bundle> documentFhirQuery) {
         var xdsAssocations = new ArrayList<Association>();
-        Bundle docResultBundle = documentFhirQuery.execute();
+        var docResultBundle = documentFhirQuery.execute();
         var resultForDocuments = buildResultForDocuments(docResultBundle);
 
         resultForDocuments.forEach(doc -> {
@@ -378,7 +381,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     }
 
     private IQuery<Bundle> prepareQuery(FindDocumentsQuery query) {
-        IQuery<Bundle> documentFhirQuery = initDocumentQuery();
+        var documentFhirQuery = initDocumentQuery();
         mapPatientIdToQuery(query, documentFhirQuery);
 
         map(query.getClassCodes(), DocumentReference.CATEGORY, documentFhirQuery);

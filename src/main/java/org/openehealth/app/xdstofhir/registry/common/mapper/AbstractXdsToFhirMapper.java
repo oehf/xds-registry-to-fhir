@@ -90,7 +90,7 @@ public abstract class AbstractXdsToFhirMapper {
         role.setSpecialty(author.getAuthorSpecialty().stream().map(this::convertToCode).toList());
         if (!author.getAuthorInstitution().isEmpty()) {
             // TODO: currently only the first element is mapped, because FHIR only support cardinality 1
-            var xdsAuthorOrg = author.getAuthorInstitution().get(0);
+            var xdsAuthorOrg = author.getAuthorInstitution().getFirst();
             var org = new Organization();
             org.setName(xdsAuthorOrg.getOrganizationName());
             if (xdsAuthorOrg.getIdNumber() != null) {

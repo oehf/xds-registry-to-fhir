@@ -135,7 +135,7 @@ public class StoredQueryMapper {
      *
      * @return consumer setting proper defaults for lid and versionInfo
      */
-    public static Consumer<? super XDSMetaClass> assignDefaultVersioning() {
+    public static Consumer<XDSMetaClass> assignDefaultVersioning() {
         return meta -> {
             meta.setLogicalUuid(meta.getEntryUuid());
             meta.setVersion(DEFAULT_VERSION);

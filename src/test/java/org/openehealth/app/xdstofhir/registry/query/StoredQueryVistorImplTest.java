@@ -38,7 +38,7 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
         mockServer.verify(request()
                 .withQueryStringParameter("date", "ge19.*", "lt19.*")//skip verify the whole datetime to avoid timezone issues
                 .withQueryStringParameter("period",  "ge19.*", "lt19.*", "ge19.*", "lt19.*")
-                .withQueryStringParameter("patient.identifier", "urn:oid:1.3|id3")
+                .withQueryStringParameter("patient:Patient.identifier", "urn:oid:1.3|id3")
                 .withQueryStringParameter("format", "urn:ihe:xds:scheme13|code13,urn:ihe:xds:scheme14|code14")
                 .withQueryStringParameter("type", "urn:ihe:xds:schemet1|codet1,urn:ihe:xds:schemet2|codet2")
                 .withQueryStringParameter("setting", "urn:ihe:xds:scheme3|code3,urn:ihe:xds:scheme4|code4")
@@ -61,7 +61,7 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
         classUnderTest.visit(query);
 
         mockServer.verify(request()
-                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("patient:Patient.identifier", "urn:oid:1.2|id1")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE)
                 .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|submissionset")
@@ -82,17 +82,17 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
         classUnderTest.visit(query);
 
         mockServer.verify(request("/DocumentReference")
-                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("patient:Patient.identifier", "urn:oid:1.2|id1")
                 .withQueryStringParameter("_include", "DocumentReference:subject")
                 .withQueryStringParameter("_profile",
                        MappingSupport.MHD_COMPREHENSIVE_PROFILE));
         mockServer.verify(request("/List")
-                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("patient:Patient.identifier", "urn:oid:1.2|id1")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile",
                         MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE));
         mockServer.verify(request("/List")
-                .withQueryStringParameter("patient.identifier", "urn:oid:1.2|id1")
+                .withQueryStringParameter("patient:Patient.identifier", "urn:oid:1.2|id1")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile",
                         MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE));
@@ -159,7 +159,7 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
         classUnderTest.visit(query);
 
         mockServer.verify(request()
-                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
+                .withQueryStringParameter("item:DocumentReference.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
                 .withQueryStringParameter("code", "https://profiles.ihe.net/ITI/MHD/CodeSystem/MHDlistTypes|folder")
@@ -208,13 +208,13 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 );
         mockServer.verify(request("/List")
-                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("item:DocumentReference.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile",
                         MappingSupport.MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE));
 
         mockServer.verify(request("/List")
-                .withQueryStringParameter("item.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
+                .withQueryStringParameter("item:DocumentReference.identifier", "urn:ietf:rfc:3986|urn:ihe:xds:12.21.34,urn:ietf:rfc:3986|urn:ihe:xds:43.56.89,urn:ietf:rfc:3986|urn:uuid:1.2.3.4,urn:ietf:rfc:3986|urn:uuid:2.3.4.5")
                 .withQueryStringParameter("_include", "List:subject")
                 .withQueryStringParameter("_profile",
                         MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE));

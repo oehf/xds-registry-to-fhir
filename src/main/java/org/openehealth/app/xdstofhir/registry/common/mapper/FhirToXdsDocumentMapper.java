@@ -112,7 +112,7 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
         var address = new Address();
         address.setCity(fhirAddress.getCity());
         if (!fhirAddress.getLine().isEmpty()) {
-            address.setStreetAddress(fhirAddress.getLine().get(0).asStringValue());
+            address.setStreetAddress(fhirAddress.getLine().getFirst().asStringValue());
         }
         address.setZipOrPostalCode(fhirAddress.getPostalCode());
         address.setCountry(fhirAddress.getCountry());

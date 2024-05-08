@@ -31,7 +31,7 @@ public class XdsToFhirSubmissionsetMapper extends AbstractXdsToFhirMapper
         mhdList.setDateElement(fromTimestamp(xdsSub.getSubmissionTime()));
         mhdList.setDesignationType(fromCode(xdsSub.getContentTypeCode()));
         if (!xdsSub.getAuthors().isEmpty())
-            mhdList.setSource(fromAuthor(xdsSub.getAuthors().get(0)));
+            mhdList.setSource(fromAuthor(xdsSub.getAuthors().getFirst()));
         if (xdsSub.getTitle() != null)
             mhdList.setTitle(xdsSub.getTitle().getValue());
         if (xdsSub.getComments() != null) {
