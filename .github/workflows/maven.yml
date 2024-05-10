@@ -48,5 +48,5 @@ jobs:
     - name: Docker Build-Tag-Push my-app
       run: |
         mvn spring-boot:build-image -DskipTests
-        docker tag xds-registry-to-fhir:${{ env.VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/xds-registry-to-fhir:0.1
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/xds-registry-to-fhir:0.1
+        docker tag xds-registry-to-fhir:${{ env.VERSION }} ${{ secrets.DOCKERHUB_USERNAME }}/xds-registry-to-fhir:latest
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/xds-registry-to-fhir:latest
