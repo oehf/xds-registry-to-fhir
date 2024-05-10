@@ -11,7 +11,7 @@
     </parent>
     <groupId>org.openehealth.app</groupId>
     <artifactId>xds-registry-to-fhir</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1</version>
     <name>IHE XDS.b Registry to FHIR adapter</name>
     <description>IHE XDS.b Registry using a FHIR server as backend</description>
     <properties>
