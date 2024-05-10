@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>3.2.5</version>
         <relativePath/><!-- lookup parent from repository -->
     </parent>
     <groupId>org.openehealth.app</groupId>
@@ -16,56 +16,17 @@
     <description>IHE XDS.b Registry using a FHIR server as backend</description>
     <properties>
         <java.version>21</java.version>
-        <ipf.version>4.8.0</ipf.version>
+        <ipf.version>5.0-m1</ipf.version>
         <mockserver.version>5.15.0</mockserver.version>
-        <!-- resolve vulnerabilities -->
-        <cxf.version>3.6.3</cxf.version>
-        <spring-framework.version>5.3.34</spring-framework.version>
-        <json-path.version>2.9.0</json-path.version>
-        <tomcat.version>9.0.88</tomcat.version>
     </properties>
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>org.apache.cxf</groupId>
-                <artifactId>cxf-bom</artifactId>
-                <version>${cxf.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework</groupId>
-                <artifactId>spring-framework-bom</artifactId>
-                <version>${spring-framework.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>org.openehealth.ipf</groupId>
                 <artifactId>ipf-dependencies</artifactId>
                 <type>pom</type>
                 <scope>import</scope>
                 <version>${ipf.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.jayway.jsonpath</groupId>
-                <artifactId>json-path</artifactId>
-                <version>${json-path.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-core</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-el</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-websocket</artifactId>
-                <version>${tomcat.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

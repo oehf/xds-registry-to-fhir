@@ -2,8 +2,8 @@ package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 
 import java.io.IOException;
 import java.util.Collections;
