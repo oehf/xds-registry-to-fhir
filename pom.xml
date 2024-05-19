@@ -117,6 +117,17 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <!-- 
+                Add build-info.properties to generated artifact
+                https://docs.spring.io/spring-boot/docs/2.1.7.RELEASE/reference/html/howto-build.html#howto-build-info 
+                -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
