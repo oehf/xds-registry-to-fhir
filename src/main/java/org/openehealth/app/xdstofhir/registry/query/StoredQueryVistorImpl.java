@@ -598,7 +598,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         return authorPersons.stream().allMatch(authorNameCriteria -> {
             var regexQuotedQuery = Pattern.quote(authorNameCriteria)
                     .replace("_", "\\E.\\Q") //Map SQL single "_" to a sincle character match in regex "."
-                    .replace("%", "\\E.*\\Q") // Map SQL wildcard "%" to a wildcard match in regx "%"
+                    .replace("%", "\\E.*\\Q") // Map SQL wildcard "%" to a wildcard match in regex ".**"
                     .replace("\\Q\\Q", "\\Q") // Avoid duplicate quoting
                     .replace("\\E\\E", "\\E");  // Avoid duplicate quoting
             return authorsToMatch.stream().anyMatch(a -> Hl7v2Based.render(a.getAuthorPerson()).matches(regexQuotedQuery));
