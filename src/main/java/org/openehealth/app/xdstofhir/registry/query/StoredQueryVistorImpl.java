@@ -1,5 +1,6 @@
 package org.openehealth.app.xdstofhir.registry.query;
 
+import static java.util.Collections.singletonList;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.assignDefaultVersioning;
 import static org.openehealth.app.xdstofhir.registry.query.StoredQueryMapper.buildIdentifierQuery;
@@ -14,6 +15,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -34,7 +37,11 @@ import org.openehealth.ipf.commons.core.URN;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Association;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationLabel;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssociationType;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Hl7v2Based;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ObjectReference;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.SubmissionSet;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByReferenceIdQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindFoldersQuery;
@@ -81,9 +88,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     @Override
     public void visit(FindDocumentsQuery query) {
         IQuery<Bundle> documentFhirQuery = prepareQuery(query);
-        mapDocuments(buildResultForDocuments(documentFhirQuery));
+        mapDocuments(buildResultForDocuments(documentFhirQuery), doc -> authorMatcher(query.getAuthorPersons(), doc.getAuthors()));
     }
-
 
     @Override
     public void visit(GetDocumentsQuery query) {
@@ -282,7 +288,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
         mapStatus(query.getStatus(),ListResource.STATUS, submissionSetfhirQuery);
         if (query.getSourceIds() != null && !query.getSourceIds().isEmpty())
             submissionSetfhirQuery.where(new TokenClientParam("sourceId").exactly().codes(query.getSourceIds()));
-        mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery));
+        Predicate<SubmissionSet> authorMatch = query.getAuthorPerson() != null ? sub -> authorMatcher(singletonList(query.getAuthorPerson()), sub.getAuthors()) : sub -> true;
+        mapSubmissionSets(buildResultForSubmissionSet(submissionSetfhirQuery), authorMatch);
     }
 
     @Override
@@ -298,7 +305,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
                 documentFhirQuery.where(new TokenClientParam("related:identifier").exactly().codes(searchToken));
             }
         }
-        mapDocuments(buildResultForDocuments(documentFhirQuery));
+        mapDocuments(buildResultForDocuments(documentFhirQuery), doc -> authorMatcher(query.getAuthorPersons(), doc.getAuthors()));
     }
 
 
@@ -520,13 +527,17 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     }
 
     private List<MhdSubmissionSet> mapSubmissionSets(Iterable<MhdSubmissionSet> fhirSubmissions) {
+        return mapSubmissionSets(fhirSubmissions, (sub) -> true);
+    }
+
+    private List<MhdSubmissionSet> mapSubmissionSets(Iterable<MhdSubmissionSet> fhirSubmissions, Predicate<SubmissionSet> xdsSubmissionSetCriteria) {
         var processedFhirSubmissions = new ArrayList<MhdSubmissionSet>();
         for (var submissionset : fhirSubmissions) {
             if (evaluateMaxCount(response)) {
                 break;
             }
             var xdsSubmission = queryProcessor.apply(submissionset);
-            if (xdsSubmission != null) {
+            if (xdsSubmission != null && xdsSubmissionSetCriteria.test(xdsSubmission)) {
                 assignDefaultVersioning().accept(xdsSubmission);
                 if (isObjectRefResult)
                     response.getReferences().add(new ObjectReference(xdsSubmission.getEntryUuid()));
@@ -539,13 +550,17 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     }
 
     private List<DocumentReference> mapDocuments(Iterable<DocumentReference> fhirDocuments) {
+        return mapDocuments(fhirDocuments, (doc) -> true);
+    }
+
+    private List<DocumentReference> mapDocuments(Iterable<DocumentReference> fhirDocuments, Predicate<DocumentEntry> xdsDocumentCriteria) {
         var processedFhirDocs = new ArrayList<DocumentReference>();
         for (var document : fhirDocuments) {
             if (evaluateMaxCount(response)) {
                 break;
             }
             var xdsDoc = queryProcessor.apply(document);
-            if (xdsDoc != null) {
+            if (xdsDoc != null && xdsDocumentCriteria.test(xdsDoc)) {
                 assignDefaultVersioning().accept(xdsDoc);
                 if (isObjectRefResult)
                     response.getReferences().add(new ObjectReference(xdsDoc.getEntryUuid()));
@@ -567,6 +582,27 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
             return true;
         }
         return false;
+    }
+
+
+    /**
+     * Provide a in-memory evaluation if a given authorPerson restrictions matches to a given Author.
+     *
+     * @param authorPersons - the person criteria from the incoming XDS query
+     * @param authorsToMatch - the authors that should match.
+     * @return true, if the authorPersons matches to the author's.
+     */
+    private boolean authorMatcher(List<String> authorPersons, List<Author> authorsToMatch) {
+        if (authorPersons == null)
+            return true;
+        return authorPersons.stream().allMatch(authorNameCriteria -> {
+            var regexQuotedQuery = Pattern.quote(authorNameCriteria)
+                    .replace("_", "\\E.\\Q") //Map SQL single "_" to a sincle character match in regex "."
+                    .replace("%", "\\E.*\\Q") // Map SQL wildcard "%" to a wildcard match in regx "%"
+                    .replace("\\Q\\Q", "\\Q") // Avoid duplicate quoting
+                    .replace("\\E\\E", "\\E");  // Avoid duplicate quoting
+            return authorsToMatch.stream().anyMatch(a -> Hl7v2Based.render(a.getAuthorPerson()).matches(regexQuotedQuery));
+        });
     }
 
 
