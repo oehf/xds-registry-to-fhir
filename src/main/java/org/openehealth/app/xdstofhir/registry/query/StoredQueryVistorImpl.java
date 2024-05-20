@@ -331,7 +331,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
             IQuery<Bundle> submissionSetfhirQuery) {
         var xdsAssocations = new ArrayList<Association>();
         var resultForSubmissionSet = buildResultForSubmissionSet(submissionSetfhirQuery);
-        resultForSubmissionSet.forEach(submission -> {
+        resultForSubmissionSet.forEach(submission ->
             submission.getEntry().forEach(entry -> {
                 var assocEntryUuid = entry.getId() != null ? entry.getId() : new URN(UUID.randomUUID()).toString();
                 if (entry.getItem().getResource() != null) {
@@ -341,8 +341,8 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
                     xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, assocEntryUuid,
                             entryUuidFrom(submission),entry.getItem().getIdentifier().getValue()));
                 }
-            });
-        });
+            })
+        );
         return xdsAssocations;
     }
 
@@ -350,15 +350,15 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     private List<Association> collectAssociationsOfFolders(IQuery<Bundle> folderFhirQuery) {
         var xdsAssocations = new ArrayList<Association>();
         var resultForFolder = buildResultForFolder(folderFhirQuery);
-        resultForFolder.forEach(folder -> {
+        resultForFolder.forEach(folder ->
             folder.getEntry().forEach(entry -> {
                 if (entry.getItem().getResource() instanceof DocumentReference folderDoc) {
                     var assocEntryUuid = entry.getId() != null ? entry.getId() : new URN(UUID.randomUUID()).toString();
                     xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, assocEntryUuid,
                             entryUuidFrom(folder), entryUuidFrom(folderDoc)));
                 }
-            });
-        });
+            })
+        );
         return xdsAssocations;
     }
 
@@ -370,10 +370,10 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
 
         resultForDocuments.forEach(doc -> {
             var listResources = BundleUtil.toListOfResourcesOfType(client.getFhirContext(), docResultBundle, ListResource.class);
-            listResources.stream().filter(list -> list.getEntry().stream().anyMatch(entry -> doc.equals(entry.getItem().getResource()))).forEach(submission -> {
+            listResources.stream().filter(list -> list.getEntry().stream().anyMatch(entry -> doc.equals(entry.getItem().getResource()))).forEach(submission ->
                 xdsAssocations.add(new Association(AssociationType.HAS_MEMBER, new URN(UUID.randomUUID()).toString(),
-                        entryUuidFrom(submission), entryUuidFrom(doc)));
-            });
+                        entryUuidFrom(submission), entryUuidFrom(doc)))
+            );
             doc.getRelatesTo().forEach(related -> {
                 if (related.getTarget().getResource() instanceof DocumentReference relatedDoc) {
                     var assocEntryUuid = related.getId() != null ? related.getId()
@@ -527,7 +527,7 @@ public class StoredQueryVistorImpl extends AbstractStoredQueryVisitor {
     }
 
     private List<MhdSubmissionSet> mapSubmissionSets(Iterable<MhdSubmissionSet> fhirSubmissions) {
-        return mapSubmissionSets(fhirSubmissions, (sub) -> true);
+        return mapSubmissionSets(fhirSubmissions, sub -> true);
     }
 
     private List<MhdSubmissionSet> mapSubmissionSets(Iterable<MhdSubmissionSet> fhirSubmissions, Predicate<SubmissionSet> xdsSubmissionSetCriteria) {

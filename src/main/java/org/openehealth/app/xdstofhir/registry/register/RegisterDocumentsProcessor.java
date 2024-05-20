@@ -5,6 +5,7 @@ import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.DOC_D
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.UUID_URN;
+import static org.openehealth.ipf.commons.ihe.xds.core.validate.ValidatorAssertions.metaDataAssert;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -155,15 +156,13 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         } catch (XDSMetaDataException notPresent) {
             return;
         }
-        if (existingDoc.getIdentifier().stream().filter(id -> id.getValue().equals(doc.getEntryUuid())).findAny().isPresent()) {
-            throw new XDSMetaDataException(ValidationMessage.UUID_NOT_UNIQUE);
-        }
-        if (!(doc.getHash().equals(existingDoc.getContentFirstRep().getAttachment().getHashElement().asStringValue()))) {
-            throw new XDSMetaDataException(ValidationMessage.DIFFERENT_HASH_CODE_IN_RESUBMISSION);
-        }
-        if (doc.getSize() != existingDoc.getContentFirstRep().getAttachment().getSize()) {
-            throw new XDSMetaDataException(ValidationMessage.DIFFERENT_SIZE_IN_RESUBMISSION);
-        }
+        metaDataAssert(existingDoc.getIdentifier().stream().filter(id -> id.getValue().equals(doc.getEntryUuid()))
+                .findAny().isEmpty(), ValidationMessage.UUID_NOT_UNIQUE);
+        metaDataAssert(
+                doc.getHash().equals(existingDoc.getContentFirstRep().getAttachment().getHashElement().asStringValue()),
+                ValidationMessage.DIFFERENT_HASH_CODE_IN_RESUBMISSION);
+        metaDataAssert(doc.getSize() == existingDoc.getContentFirstRep().getAttachment().getSize(),
+                ValidationMessage.DIFFERENT_SIZE_IN_RESUBMISSION);
     }
 
     /**
@@ -182,17 +181,17 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                     folder.setDate(new Date());
                     var documentEntry = documentMap.get(assoc.getTargetUuid());
                     if (documentEntry != null) {
-                        if (!folder.getSubject().getIdentifier().getValue()
-                                .equals(documentEntry.getPatientId().getId())) {
-                            throw new XDSMetaDataException(ValidationMessage.FOLDER_PATIENT_ID_WRONG);
-                        }
+                        metaDataAssert(
+                                folder.getSubject().getIdentifier().getValue()
+                                        .equals(documentEntry.getPatientId().getId()),
+                                ValidationMessage.FOLDER_PATIENT_ID_WRONG);
                         folder.addEntry(createReference(assoc, DocumentReference.class.getSimpleName()));
                     } else {
                         var existingDoc = lookupExistingDocument(assoc.getTargetUuid());
-                        if (!folder.getSubject().getIdentifier().getValue()
-                                .equals(existingDoc.getSubject().getIdentifier().getValue())) {
-                            throw new XDSMetaDataException(ValidationMessage.FOLDER_PATIENT_ID_WRONG);
-                        }
+                        metaDataAssert(
+                                folder.getSubject().getIdentifier().getValue()
+                                        .equals(existingDoc.getSubject().getIdentifier().getValue()),
+                                ValidationMessage.FOLDER_PATIENT_ID_WRONG);
                         var ref = new ListEntryComponent(new Reference(existingDoc));
                         ref.setId(assoc.getEntryUuid());
                         folder.addEntry(ref);
@@ -213,9 +212,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
         var result = client.search().forResource(MhdFolder.class).count(1)
                 .where(ListResource.IDENTIFIER.exactly().systemAndValues(URI_URN, entryUuid))
                 .returnBundle(Bundle.class).execute();
-        if (result.getEntry().isEmpty()) {
-            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
-        }
+        metaDataAssert(!result.getEntry().isEmpty(), ValidationMessage.UNRESOLVED_REFERENCE, entryUuid);
         return (MhdFolder)result.getEntryFirstRep().getResource();
     }
 
@@ -225,9 +222,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                 .filter(assoc -> DOC_DOC_FHIR_ASSOCIATIONS.containsKey(assoc.getAssociationType()))
                 .map(assoc -> {
                     var result = lookupExistingDocument(assoc.getTargetUuid());
-                    if (!result.getStatus().equals(DocumentReferenceStatus.CURRENT)) {
-                        throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, assoc.getTargetUuid());
-                    }
+                    metaDataAssert(result.getStatus().equals(DocumentReferenceStatus.CURRENT),
+                            ValidationMessage.UNRESOLVED_REFERENCE, assoc.getTargetUuid());
                     var ref = new DocumentReferenceRelatesToComponent();
                     ref.setCode(DOC_DOC_FHIR_ASSOCIATIONS.get(assoc.getAssociationType()));
                     ref.setTarget(new Reference(result));
@@ -345,9 +341,8 @@ public class RegisterDocumentsProcessor implements Iti42Service {
      */
     private DocumentReference replacePreviousDocument(String entryUuid, DocumentReference replacingDocument) {
         var replacedDocument = lookupExistingDocument(entryUuid);
-        if (replacedDocument.getStatus() != DocumentReferenceStatus.CURRENT) {
-            throw new XDSMetaDataException(ValidationMessage.DEPRECATED_OBJ_CANNOT_BE_TRANSFORMED);
-        }
+        metaDataAssert(replacedDocument.getStatus() == DocumentReferenceStatus.CURRENT,
+                ValidationMessage.DEPRECATED_OBJ_CANNOT_BE_TRANSFORMED);
         if (!replacedDocument.getSubject().getReference().endsWith(replacingDocument.getSubject().getReference())) {
             log.debug("Replacing and replaced document do not have the same patientid {} and {}",
                     replacedDocument.getSubject().getReference(), replacingDocument.getSubject().getReference());
@@ -363,18 +358,15 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                 .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, ids))
                 .cacheControl(new CacheControlDirective().setNoCache(true).setNoStore(true))
                 .returnBundle(Bundle.class).execute();
-        if (result.getEntry().isEmpty()) {
-            throw new XDSMetaDataException(ValidationMessage.UNRESOLVED_REFERENCE, Arrays.toString(ids));
-        }
+        metaDataAssert(!result.getEntry().isEmpty(), ValidationMessage.UNRESOLVED_REFERENCE, Arrays.toString(ids));
         return (DocumentReference)result.getEntryFirstRep().getResource();
     }
 
     private void validateKnownRepository(RegisterDocumentSet register) {
-        register.getDocumentEntries().forEach(doc -> {
-            if (!registryConfig.getRepositoryEndpoint().containsKey(doc.getRepositoryUniqueId())) {
-                throw new XDSMetaDataException(ValidationMessage.UNKNOWN_REPOSITORY_ID, doc.getRepositoryUniqueId());
-            }
-        });
+        register.getDocumentEntries()
+                .forEach(doc -> metaDataAssert(
+                        registryConfig.getRepositoryEndpoint().containsKey(doc.getRepositoryUniqueId()),
+                        ValidationMessage.UNKNOWN_REPOSITORY_ID, doc.getRepositoryUniqueId()));
     }
 
     /**
@@ -425,9 +417,7 @@ public class RegisterDocumentsProcessor implements Iti42Service {
                         xdsObject.getPatientId().getId()))
                 .returnBundle(Bundle.class).cacheControl(new CacheControlDirective().setNoCache(true).setNoStore(true))
                 .execute();
-        if (result.getEntry().isEmpty()) {
-            throw new XDSMetaDataException(ValidationMessage.UNKNOWN_PATIENT_ID);
-        }
+        metaDataAssert(!result.getEntry().isEmpty(), ValidationMessage.UNKNOWN_PATIENT_ID);
         xdsObject.getPatientId().setId(result.getEntryFirstRep().getResource().getIdPart());
     }
 
