@@ -105,6 +105,10 @@
             <artifactId>ipf-hl7-spring-boot-starter</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.openehealth.ipf.commons</groupId>
+            <artifactId>ipf-commons-ihe-xua</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-junit-jupiter-no-dependencies</artifactId>
             <version>${mockserver.version}</version>
