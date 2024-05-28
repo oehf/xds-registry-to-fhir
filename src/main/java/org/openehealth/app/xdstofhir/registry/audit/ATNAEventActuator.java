@@ -16,7 +16,7 @@ public class ATNAEventActuator {
     private final RecentATNAEvents atnaEvents;
 
     @ReadOperation(produces = "text/plain")
-    public String getReleaseNotes() {
+    public String getAtnaEvents() {
         return atnaEvents.getMessages().reversed().stream()
                 .collect(Collectors.joining(System.lineSeparator()));
     }
