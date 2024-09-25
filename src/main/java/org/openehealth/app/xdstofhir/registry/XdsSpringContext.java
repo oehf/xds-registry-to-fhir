@@ -13,6 +13,7 @@ import org.apache.cxf.BusFactory;
 import org.apache.cxf.bus.spring.SpringBus;
 import org.apache.cxf.ext.logging.LoggingFeature;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdFolder;
 import org.openehealth.app.xdstofhir.registry.common.fhir.MhdSubmissionSet;
 import org.openehealth.ipf.commons.spring.map.config.CustomMappings;
@@ -23,6 +24,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 
+import static org.openehealth.app.xdstofhir.registry.common.Wss4jConfigurator.createWss4jInterceptor;
+import static org.openehealth.app.xdstofhir.registry.common.Wss4jConfigurator.createWss4jProperties;
+
 @Configuration
 public class XdsSpringContext {
 
@@ -32,8 +36,10 @@ public class XdsSpringContext {
     private Resource hl7v2fhirMapping;
 
     @Bean(name = Bus.DEFAULT_BUS_ID)
-    SpringBus springBus() {
+    SpringBus springBus(RegistryConfiguration registryConfiguration) {
         var springBus = new SpringBus();
+        springBus.setProperties(createWss4jProperties(registryConfiguration.getXua()));
+        springBus.getInInterceptors().add(createWss4jInterceptor(registryConfiguration));
         var logging = new LoggingFeature();
         logging.setLogBinary(true);
         logging.setLogMultipart(true);
