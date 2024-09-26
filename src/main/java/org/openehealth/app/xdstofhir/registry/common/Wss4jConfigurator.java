@@ -16,7 +16,7 @@ public class Wss4jConfigurator {
                 new CertificateStore(xua.getTrustedIdentityProviderCertificates()));
     }
 
-    public static WSS4JInInterceptor createWss4jInterceptor(RegistryConfiguration serviceConfig) {
+    public static WSS4JInInterceptor createWss4jInterceptor() {
         return new WSS4JInInterceptor(Map.of(ConfigurationConstants.ACTION, ConfigurationConstants.SAML_TOKEN_SIGNED));
     }
 }

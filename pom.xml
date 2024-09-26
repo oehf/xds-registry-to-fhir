@@ -28,13 +28,15 @@
                 <scope>import</scope>
                 <version>${ipf.version}</version>
             </dependency>
+            <!-- force-upgrade to 6.1.13 fixes ClassNotFound org.springframework.web.client.NoOpResponseErrorHandler -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>6.1.13</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.apache.camel.springboot</groupId>
             <artifactId>camel-spring-boot-starter</artifactId>

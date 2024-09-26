@@ -75,7 +75,7 @@ public class XdsSpringContext {
     SmartInitializingSingleton applyXuaConfiguration(SpringBus springBus, RegistryConfiguration registryConfiguration) {
     	return () -> {
 	        springBus.setProperties(createWss4jProperties(registryConfiguration.getXua()));
-	        springBus.getInInterceptors().add(createWss4jInterceptor(registryConfiguration));
+	        springBus.getInInterceptors().add(createWss4jInterceptor());
     	};
     }
     
