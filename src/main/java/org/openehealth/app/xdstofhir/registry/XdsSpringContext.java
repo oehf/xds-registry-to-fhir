@@ -36,10 +36,8 @@ public class XdsSpringContext {
     private Resource hl7v2fhirMapping;
 
     @Bean(name = Bus.DEFAULT_BUS_ID)
-    SpringBus springBus(RegistryConfiguration registryConfiguration) {
+    SpringBus springBus() {
         var springBus = new SpringBus();
-        springBus.setProperties(createWss4jProperties(registryConfiguration.getXua()));
-        springBus.getInInterceptors().add(createWss4jInterceptor(registryConfiguration));
         var logging = new LoggingFeature();
         logging.setLogBinary(true);
         logging.setLogMultipart(true);
@@ -71,6 +69,16 @@ public class XdsSpringContext {
         mapping.setMappingResource(hl7v2fhirMapping);
         return mapping;
     }
+    
+    @ConditionalOnProperty(value = "xds.xua.enabled", havingValue = "true")
+    @Bean
+    SmartInitializingSingleton applyXuaConfiguration(SpringBus springBus, RegistryConfiguration registryConfiguration) {
+    	return () -> {
+	        springBus.setProperties(createWss4jProperties(registryConfiguration.getXua()));
+	        springBus.getInInterceptors().add(createWss4jInterceptor(registryConfiguration));
+    	};
+    }
+    
 
     /**
      * Verify after startup that the FHIR Server contain the required MHD FHIR profile and create them if not present.
