@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.annotation.DirtiesContext;
 
 import javax.xml.namespace.QName;
 import javax.xml.transform.Source;
@@ -27,9 +27,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.util.AssertionErrors.assertEquals;
 
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@TestPropertySource(properties = {"xds.xua.enabled=true"})
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,  properties = {
+	    "xds.xua.enabled=true"
+	  })
 @ExtendWith(OutputCaptureExtension.class)
+@DirtiesContext
 class XdsToFhirApplicationWebServiceTestIT {
     @LocalServerPort
     private int port;
