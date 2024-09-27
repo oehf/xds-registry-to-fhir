@@ -2,6 +2,7 @@ package org.openehealth.app.xdstofhir.registry.query;
 
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FetchQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDispensesQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByReferenceIdForMultiplePatientsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByTitleQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsForMultiplePatientsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindFoldersForMultiplePatientsQuery;
@@ -111,4 +112,10 @@ public abstract class AbstractStoredQueryVisitor implements Visitor {
     public void visit(SubscriptionForPatientIndependentSubmissionSetQuery arg0) {
         throw new UnsupportedOperationException("DSUB query not yet supported");
     }
+    
+
+	@Override
+	public void visit(FindDocumentsByReferenceIdForMultiplePatientsQuery query) {
+		throw new UnsupportedOperationException("DSUB query not yet supported");
+	}
 }
