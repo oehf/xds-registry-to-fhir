@@ -22,13 +22,7 @@ import org.hl7.fhir.r4.model.PractitionerRole;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.StringType;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Name;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Telecom;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.XDSMetaClass;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
 
 public abstract class AbstractXdsToFhirMapper {
 
@@ -51,7 +45,7 @@ public abstract class AbstractXdsToFhirMapper {
 
     protected Identifier fromIdentifier(final Identifiable id) {
         var identifier = new Identifier();
-        identifier.setSystem(OID_URN + id.getAssigningAuthority().getUniversalId());
+        identifier.setSystem(nullSafeConvertToUrn(id.getAssigningAuthority()));
         identifier.setValue(id.getId());
         return identifier;
     }
@@ -77,7 +71,7 @@ public abstract class AbstractXdsToFhirMapper {
     protected Reference fromAuthor(final Author author) {
         var role = new PractitionerRole();
         var doc = new Practitioner();
-        if((author.getAuthorPerson() != null) && !author.getAuthorPerson().isEmpty()) {
+        if (author.getAuthorPerson() != null && !author.getAuthorPerson().isEmpty()) {
             if (!author.getAuthorPerson().getName().isEmpty())
                 doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));
             if (!author.getAuthorPerson().getId().isEmpty())
@@ -95,7 +89,7 @@ public abstract class AbstractXdsToFhirMapper {
             org.setName(xdsAuthorOrg.getOrganizationName());
             if (xdsAuthorOrg.getIdNumber() != null) {
                 var identifier = new Identifier();
-                identifier.setSystem(OID_URN + xdsAuthorOrg.getAssigningAuthority().getUniversalId());
+                identifier.setSystem(nullSafeConvertToUrn(xdsAuthorOrg.getAssigningAuthority()));
                 identifier.setValue(xdsAuthorOrg.getIdNumber());
                 org.addIdentifier(identifier);
             }
@@ -103,6 +97,10 @@ public abstract class AbstractXdsToFhirMapper {
         }
         reference.setResource(role);
         return reference;
+    }
+
+    private static String nullSafeConvertToUrn(AssigningAuthority xdsAuthorOrg) {
+        return xdsAuthorOrg == null ? null : OID_URN + xdsAuthorOrg.getUniversalId();
     }
 
     protected CodeableConcept convertToCode(final Identifiable id) {
@@ -117,7 +115,7 @@ public abstract class AbstractXdsToFhirMapper {
         return fhirConcept;
     }
 
-    protected ContactPoint fromTelecom (final Telecom xdsTelecom) {
+    protected ContactPoint fromTelecom(final Telecom xdsTelecom) {
         var cp = new ContactPoint();
         if (xdsTelecom.getEmail() != null) {
             cp.setSystem(ContactPointSystem.EMAIL);
