@@ -1,36 +1,26 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
-import static java.util.Collections.singletonList;
-import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.MHD_COMPREHENSIVE_PROFILE;
-import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
-import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
+import ca.uhn.hl7v2.model.v25.datatype.XCN;
+import lombok.RequiredArgsConstructor;
+import org.hl7.fhir.r4.model.Address;
+import org.hl7.fhir.r4.model.*;
+import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
+import org.hl7.fhir.r4.model.Enumerations.AdministrativeGender;
+import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
+import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
+import org.openehealth.ipf.commons.map.BidiMappingService;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.function.BiFunction;
 
-import lombok.RequiredArgsConstructor;
-import org.hl7.fhir.r4.model.Address;
-import org.hl7.fhir.r4.model.Base64BinaryType;
-import org.hl7.fhir.r4.model.CanonicalType;
-import org.hl7.fhir.r4.model.DateTimeType;
-import org.hl7.fhir.r4.model.DateType;
-import org.hl7.fhir.r4.model.DocumentReference;
-import org.hl7.fhir.r4.model.DocumentReference.DocumentReferenceRelatesToComponent;
-import org.hl7.fhir.r4.model.Enumerations.AdministrativeGender;
-import org.hl7.fhir.r4.model.Enumerations.DocumentReferenceStatus;
-import org.hl7.fhir.r4.model.Identifier;
-import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Period;
-import org.hl7.fhir.r4.model.Practitioner;
-import org.hl7.fhir.r4.model.Reference;
-import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
-import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.PatientInfo;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.ReferenceId;
-import org.openehealth.ipf.commons.map.BidiMappingService;
-import org.springframework.stereotype.Component;
+import static java.util.Collections.singletonList;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.MHD_COMPREHENSIVE_PROFILE;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
+import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
 
 @Component
 @RequiredArgsConstructor
@@ -98,10 +88,19 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
     private Reference fromAuthenticator(Person xdsAuthenticator) {
         var authenticator = new Reference();
         authenticator.setType(Practitioner.class.getSimpleName());
-        var practitoner = new Practitioner();
-        practitoner.setName(singletonList(fromName(xdsAuthenticator.getName())));
-        practitoner.addIdentifier(fromIdentifier(xdsAuthenticator.getId()));
-        authenticator.setResource(practitoner);
+        var practitioner = new Practitioner();
+
+        // XCN parser already verifies presence of either name or ID
+        Name<XCN> name = xdsAuthenticator.getName();
+        if (!name.isEmpty()) {
+            practitioner.setName(singletonList(fromName(name)));
+        }
+        Identifiable id = xdsAuthenticator.getId();
+        if (!id.isEmpty()) {
+            practitioner.addIdentifier(fromIdentifier(id));
+        }
+
+        authenticator.setResource(practitioner);
         return authenticator;
     }
 
