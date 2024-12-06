@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>3.4.0</version>
         <relativePath/><!-- lookup parent from repository -->
     </parent>
     <groupId>org.openehealth.app</groupId>
@@ -16,7 +16,7 @@
     <description>IHE XDS.b Registry using a FHIR server as backend</description>
     <properties>
         <java.version>21</java.version>
-        <spring.boot.version>3.3.4</spring.boot.version>
+        <spring.boot.version>3.4.0</spring.boot.version>
         <ipf.version>5.0-m3</ipf.version>
         <mockserver.version>5.15.0</mockserver.version>
     </properties>
