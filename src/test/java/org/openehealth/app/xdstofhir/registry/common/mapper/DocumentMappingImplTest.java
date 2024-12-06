@@ -1,6 +1,7 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
@@ -21,6 +22,8 @@ import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssigningAuthority;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Organization;
+import org.openehealth.ipf.commons.ihe.xds.core.validate.XDSMetaDataException;
 import org.openehealth.ipf.commons.spring.map.SpringBidiMappingService;
 import org.openehealth.ipf.commons.xml.XmlUtils;
 import org.springframework.core.io.ClassPathResource;
@@ -49,6 +52,49 @@ class DocumentMappingImplTest {
         verifyFhirXdsMapping(testDocument);
     }
 
+    @Test
+    void verifyXcnWithNoIdentifierShallBeMapped() throws JAXBException {
+        DocumentEntry testDocument = SampleData
+                .createDocumentEntry(new Identifiable("123", new AssigningAuthority("2.999.3.4")));
+        testDocument.setUri(null);
+        testDocument.getLegalAuthenticator().setId(null);
+
+        verifyFhirXdsMapping(testDocument);
+    }
+
+    @Test
+    void verifyXcnWithNoNameShallBeMapped() throws JAXBException {
+        DocumentEntry testDocument = SampleData
+                .createDocumentEntry(new Identifiable("123", new AssigningAuthority("2.999.3.4")));
+        testDocument.setUri(null);
+        testDocument.getLegalAuthenticator().setName(null);
+
+        verifyFhirXdsMapping(testDocument);
+    }
+
+    @Test
+    void verifyXonWithNoAssigningAuthorityShallBeMapped() throws JAXBException {
+        DocumentEntry testDocument = SampleData
+                .createDocumentEntry(new Identifiable("123", new AssigningAuthority("2.999.3.4")));
+        testDocument.setUri(null);
+        Organization organization = testDocument.getAuthors().getFirst().getAuthorInstitution().getFirst();
+        organization.setIdNumber("1.2.3");
+        organization.setAssigningAuthority(null);
+
+        verifyFhirXdsMapping(testDocument);
+    }
+
+    @Test
+    void verifyXonWithNonOidIdentifierAndNoAssigningAuthorityShallNotBeAccepted() {
+        DocumentEntry testDocument = SampleData
+                .createDocumentEntry(new Identifiable("123", new AssigningAuthority("2.999.3.4")));
+        testDocument.setUri(null);
+        Organization organization = testDocument.getAuthors().getFirst().getAuthorInstitution().getFirst();
+        organization.setIdNumber("112");
+        organization.setAssigningAuthority(null);
+
+        assertThrowsExactly(XDSMetaDataException.class, () -> verifyFhirXdsMapping(testDocument));
+    }
 
     @Test
     void minimalDocumentMapping() throws JAXBException, IOException {

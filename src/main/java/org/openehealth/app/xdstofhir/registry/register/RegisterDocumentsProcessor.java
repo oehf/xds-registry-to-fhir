@@ -394,9 +394,9 @@ public class RegisterDocumentsProcessor implements Iti42Service {
      */
     private void assignRegistryValues(List<Association> associations) {
         for (var assoc : associations) {
-            if (!assoc.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
-                var previousIdentifier = assoc.getEntryUuid();
+            if (assoc.getEntryUuid() == null || !assoc.getEntryUuid().startsWith(MappingSupport.UUID_URN)) {
                 assoc.assignEntryUuid();
+                var previousIdentifier = assoc.getEntryUuid();
                 associations.stream().forEach(as -> {
                     as.setSourceUuid(as.getSourceUuid().replace(previousIdentifier, assoc.getEntryUuid()));
                     as.setTargetUuid(as.getTargetUuid().replace(previousIdentifier, assoc.getEntryUuid()));

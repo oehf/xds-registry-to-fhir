@@ -1,34 +1,19 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
-import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.urnDecodedScheme;
+import org.hl7.fhir.r4.model.*;
+import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
+import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Organization;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
+import org.openehealth.ipf.commons.ihe.xds.core.validate.OIDValidator;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.hl7.fhir.r4.model.BaseDateTimeType;
-import org.hl7.fhir.r4.model.CodeableConcept;
-import org.hl7.fhir.r4.model.Coding;
-import org.hl7.fhir.r4.model.ContactPoint;
-import org.hl7.fhir.r4.model.ContactPoint.ContactPointSystem;
-import org.hl7.fhir.r4.model.HumanName;
-import org.hl7.fhir.r4.model.Identifier;
-import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Practitioner;
-import org.hl7.fhir.r4.model.PractitionerRole;
-import org.hl7.fhir.r4.model.Reference;
-import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssigningAuthority;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Author;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.LocalizedString;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Organization;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Telecom;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.Timestamp;
-import org.openehealth.ipf.commons.ihe.xds.core.metadata.XcnName;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.urnDecodedScheme;
 
 public abstract class AbstractFhirToXdsMapper {
 
@@ -71,7 +56,7 @@ public abstract class AbstractFhirToXdsMapper {
             doc = (Practitioner) fhirPractRole.getPractitioner().getResource();
             xdsAuthor.getAuthorRole().addAll(fhirPractRole.getCode().stream().map(this::fromCodeableConcept).toList());
             xdsAuthor.getAuthorSpecialty().addAll(fhirPractRole.getSpecialty().stream().map(this::fromCodeableConcept).toList());
-            fromOrganization((org.hl7.fhir.r4.model.Organization)fhirPractRole.getOrganization().getResource()).ifPresent(org -> xdsAuthor.getAuthorInstitution().add(org));
+            fromOrganization((org.hl7.fhir.r4.model.Organization) fhirPractRole.getOrganization().getResource()).ifPresent(org -> xdsAuthor.getAuthorInstitution().add(org));
         } else if (resource instanceof Practitioner docResource) {
             doc = docResource;
         }
@@ -105,13 +90,19 @@ public abstract class AbstractFhirToXdsMapper {
         return xdsName;
     }
 
-    private Optional<Organization> fromOrganization(org.hl7.fhir.r4.model.Organization fhirAuthOrg){
+    private Optional<Organization> fromOrganization(org.hl7.fhir.r4.model.Organization fhirAuthOrg) {
         if (fhirAuthOrg != null) {
             var xdsOrg = new Organization();
             var identifierFirstRep = fhirAuthOrg.getIdentifierFirstRep();
             if (identifierFirstRep != null && !identifierFirstRep.isEmpty()) {
                 xdsOrg.setIdNumber(identifierFirstRep.getValue());
-                xdsOrg.setAssigningAuthority(new AssigningAuthority(urnDecodedScheme(identifierFirstRep.getSystem())));
+
+                if (identifierFirstRep.getSystem() != null) {
+                    xdsOrg.setAssigningAuthority(new AssigningAuthority(urnDecodedScheme(identifierFirstRep.getSystem())));
+                } else {
+                    // without assigning authority, the ID needs to be a valid OID.
+                    new OIDValidator().validate(identifierFirstRep.getValue());
+                }
             }
             xdsOrg.setOrganizationName(fhirAuthOrg.getName());
             return Optional.of(xdsOrg);
@@ -120,7 +111,7 @@ public abstract class AbstractFhirToXdsMapper {
         }
     }
 
-    private Identifiable fromCodeableConcept(CodeableConcept codeConcept ) {
+    private Identifiable fromCodeableConcept(CodeableConcept codeConcept) {
         var id = new Identifiable();
         var code = codeConcept.getCodingFirstRep();
         if (code.getSystem() != null) {
