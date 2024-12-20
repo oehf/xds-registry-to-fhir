@@ -17,7 +17,7 @@
     <properties>
         <java.version>21</java.version>
         <spring.boot.version>3.4.0</spring.boot.version>
-        <ipf.version>5.0-m3</ipf.version>
+        <ipf.version>5.0-rc1</ipf.version>
         <mockserver.version>5.15.0</mockserver.version>
     </properties>
     <dependencyManagement>
