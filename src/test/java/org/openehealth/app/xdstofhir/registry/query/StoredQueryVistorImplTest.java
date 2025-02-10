@@ -43,11 +43,12 @@ public class StoredQueryVistorImplTest extends AbstractFhirMockserver {
                 .withQueryStringParameter("type", "urn:ihe:xds:schemet1|codet1,urn:ihe:xds:schemet2|codet2")
                 .withQueryStringParameter("setting", "urn:ihe:xds:scheme3|code3,urn:ihe:xds:scheme4|code4")
                 .withQueryStringParameter("_include", "DocumentReference:subject")
+                .withQueryStringParameter("security-label", "urn:ihe:xds:scheme10|code10,urn:ihe:xds:scheme11|code11", "urn:ihe:xds:scheme12|code12")
                 .withQueryStringParameter("_profile", MappingSupport.MHD_COMPREHENSIVE_PROFILE)
                 .withQueryStringParameter("category", "urn:ihe:xds:scheme1|code1,urn:ihe:xds:scheme2|code2")
                 .withQueryStringParameter("event", "urn:ihe:xds:scheme7|code7,urn:ihe:xds:scheme8|code8", "urn:ihe:xds:scheme9|code9")
                 .withQueryStringParameter("facility", "urn:ihe:xds:scheme5|code5,urn:ihe:xds:scheme6|code6")
-                .withQueryStringParameter("status", "current")
+                .withQueryStringParameter("status", "current,superseded")
                 );
     }
 
