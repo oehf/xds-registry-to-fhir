@@ -117,7 +117,7 @@
             "value" : "41689208"
           }
         },
-        "date" : "1981-01-01T01:00:00.000+01:00",
+        "date" : "${json-unit.any-string}",
         "author" : [ {
           "reference" : "${json-unit.any-string}"
         } ],
