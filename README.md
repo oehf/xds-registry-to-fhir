@@ -16,6 +16,8 @@ Target goal is a blueprint project to see how [IPF](https://github.com/oehf/ipf)
 ## Features
 * [ITI-42](https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html) to register documents to the registry  
 (default endpoint: http://localhost:8081/services/registry/iti42)
+* [ITI-61](https://profiles.ihe.net/ITI/TF/Volume2/ITI-61.html) to register on-demand documents to the registry  
+(default endpoint: http://localhost:8081/services/registry/iti61)
 * [ITI-18](https://profiles.ihe.net/ITI/TF/Volume2/ITI-18.html) to query documents from the registry  
 (default endpoint: http://localhost:8081/services/registry/iti18)
 * [ITI-62](https://profiles.ihe.net/ITI/TF/Volume2/ITI-62.html) to remove document metadata from the registry  
