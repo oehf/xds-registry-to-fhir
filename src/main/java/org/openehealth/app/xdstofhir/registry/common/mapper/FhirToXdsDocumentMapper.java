@@ -23,6 +23,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.CXiAssigningAuthority;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Code;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntry;
+import org.openehealth.ipf.commons.ihe.xds.core.metadata.DocumentEntryType;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.LocalizedString;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.PatientInfo;
@@ -69,12 +70,18 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
         if (attachment.getTitle() != null)
             doc.setTitle(
                     new LocalizedString(attachment.getTitle(), attachment.getLanguage(), StandardCharsets.UTF_8.name()));
-        doc.setSize(Long.valueOf(attachment.getSize()));
-        var hash = attachment.getHashElement().asStringValue();
-        doc.setHash(hash != null ? hash : registryConfig.getDefaultHash());
+        if (attachment.getSize() > 0 )
+        	doc.setSize(Long.valueOf(attachment.getSize()));
         var creation = attachment.getCreationElement() != null ? attachment.getCreationElement()
                 : fhirDoc.getDateElement();
-        doc.setCreationTime(fromDateTime(creation));
+        if (!creation.isEmpty())
+        	doc.setCreationTime(fromDateTime(creation));
+        if (creation.isEmpty() && attachment.getSize()  == 0)
+        	doc.setType(DocumentEntryType.ON_DEMAND);
+        else {
+            var hash = attachment.getHashElement().asStringValue();
+            doc.setHash(hash != null ? hash : registryConfig.getDefaultHash());
+        }
         doc.setLanguageCode(attachment.getLanguage());
         doc.setSourcePatientId(fromSourcePatient(fhirDoc.getContext().getSourcePatientInfo().getIdentifier()).orElse(doc.getPatientId()));
         doc.setSourcePatientInfo(fromSourcePatient(fhirDoc.getContext().getSourcePatientInfo()));

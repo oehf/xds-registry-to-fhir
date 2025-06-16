@@ -4,6 +4,8 @@ import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti1
 import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti18ResponseValidator;
 import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti42RequestValidator;
 import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti42ResponseValidator;
+import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti61RequestValidator;
+import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti61ResponseValidator;
 import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti62RequestValidator;
 import static org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators.iti62ResponseValidator;
 
@@ -12,9 +14,11 @@ import org.apache.camel.builder.RouteBuilder;
 import org.openehealth.app.xdstofhir.registry.patientfeed.Iti8Service;
 import org.openehealth.app.xdstofhir.registry.query.Iti18Service;
 import org.openehealth.app.xdstofhir.registry.register.Iti42Service;
+import org.openehealth.app.xdstofhir.registry.register.Iti61Service;
 import org.openehealth.app.xdstofhir.registry.remove.Iti62Service;
 import org.openehealth.ipf.commons.ihe.xds.core.validate.XDSMetaDataException;
 import org.openehealth.ipf.platform.camel.ihe.mllp.PixPdqCamelValidators;
+import org.openehealth.ipf.platform.camel.ihe.xds.XdsCamelValidators;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -39,6 +43,12 @@ public class XdsRouteBuilder extends RouteBuilder {
             .process(iti42RequestValidator())
             .bean(Iti42Service.class)
             .process(iti42ResponseValidator());
+        
+        from("{{xds.endpoint.iti61}}")
+	        .routeId("iti61Route")
+	        .process(iti61RequestValidator())
+	        .bean(Iti61Service.class)
+	        .process(iti61ResponseValidator());
 
         from("{{xds.endpoint.iti62}}")
             .routeId("iti62Route")

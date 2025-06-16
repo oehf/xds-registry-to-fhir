@@ -54,13 +54,16 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
         attachment.setContentType(xdsDoc.getMimeType());
         if (xdsDoc.getTitle() != null)
             attachment.setTitle(xdsDoc.getTitle().getValue());
-        attachment.setSize(xdsDoc.getSize().intValue());
-        attachment.setHashElement(new Base64BinaryType(xdsDoc.getHash()));
+        if (xdsDoc.getSize() != null)
+        	attachment.setSize(xdsDoc.getSize().intValue());
+        if (xdsDoc.getHash() != null)
+        	attachment.setHashElement(new Base64BinaryType(xdsDoc.getHash()));
         var fromTimestamp = fromTimestamp(xdsDoc.getCreationTime());
         attachment.setCreationElement(fromTimestamp);
         attachment.setLanguage(xdsDoc.getLanguageCode());
         attachment.setUrl(registryConfig.urlFrom(xdsDoc.getRepositoryUniqueId(), xdsDoc.getUniqueId()));
-        fhirDoc.setDate(fromTimestamp.getValue());
+        if (fromTimestamp != null)
+        	fhirDoc.setDate(fromTimestamp.getValue());
         var sourcePatientReference = new Reference();
         sourcePatientReference.setType(Patient.class.getSimpleName());
         sourcePatientReference.setIdentifier(fromIdentifier(xdsDoc.getSourcePatientId()));

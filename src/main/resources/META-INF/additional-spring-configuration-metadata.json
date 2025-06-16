@@ -1,0 +1,56 @@
+{"properties": [
+  {
+    "name": "fhir.server.profile.bootstrap",
+    "type": "java.lang.Boolean",
+    "description": "If true, server will upload MHD relevant resources (StructureDefinition) to the FHIR server to allow validation.",
+    "defaultValue": "true"
+  },
+  {
+    "name": "fhir.server.base",
+    "type": "java.lang.String",
+    "description": "Endpoint of the FHIR R4 Server that will be used as backend",
+    "defaultValue": "http://hapi.fhir.org/baseR4"
+  },
+  {
+    "name": "ipf.atna.mock.recent",
+    "type": "java.lang.Integer",
+    "description": "Limit the number ATNA message to the most recent 'n'.",
+    "defaultValue": "20"
+  },
+  {
+    "name": "ipf.atna.mock.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable ATNA mock actuator endpoint (exposed on /actuator/atna)\tDisable Mock to send ATNA event to a 'real' ATNA server.",
+    "defaultValue": "true"
+  },
+  {
+    "name": "xds.endpoint.iti18",
+    "type": "java.lang.String",
+    "description": "ITI-18 endpoint context path",
+	"defaultValue": "xds-iti18:registry/iti18"
+  },
+  {
+    "name": "xds.endpoint.iti62",
+    "type": "java.lang.String",
+    "description": "ITI-62 endpoint context path",
+	"defaultValue": "rmd-iti62:registry/iti62"
+  },
+  {
+    "name": "xds.endpoint.iti61",
+    "type": "java.lang.String",
+    "description": "ITI-61 endpoint context path",
+	"defaultValue": "xds-iti61:registry/iti61"
+  },
+  {
+    "name": "xds.endpoint.iti42",
+    "type": "java.lang.String",
+    "description": "ITI-42 endpoint context path",
+	"defaultValue": "xds-iti42:registry/iti42"
+  },
+  {
+    "name": "xds.endpoint.iti8",
+    "type": "java.lang.String",
+    "description": "ITI-8 endpoint host and port binding",
+	"defaultValue": "xds-iti8:0.0.0.0:2575"
+  }
+]}

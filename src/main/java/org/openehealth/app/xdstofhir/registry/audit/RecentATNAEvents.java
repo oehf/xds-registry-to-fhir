@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
-@ConditionalOnProperty(value = "ipf.atna.mock.enabled", havingValue = "true")
+@ConditionalOnProperty(prefix="ipf.atna.mock", value = "enabled", havingValue = "true")
 public class RecentATNAEvents implements AuditTransmissionProtocol {
     @Getter
     private final List<String> messages = new ArrayList<>();

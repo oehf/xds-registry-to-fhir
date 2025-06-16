@@ -61,7 +61,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class RegisterDocumentsProcessor implements Iti42Service {
+public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     private final IGenericClient client;
     private final BiFunction<DocumentEntry, List<DocumentReferenceRelatesToComponent>, DocumentReference> documentMapper;
     private final BiFunction<SubmissionSet, List<ListEntryComponent>, MhdSubmissionSet> submissionSetMapper;

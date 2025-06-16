@@ -70,7 +70,7 @@ public class XdsSpringContext {
         return mapping;
     }
     
-    @ConditionalOnProperty(value = "xds.xua.enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix="xds.xua", value = "enabled", havingValue = "true")
     @Bean
     SmartInitializingSingleton applyXuaConfiguration(SpringBus springBus, RegistryConfiguration registryConfiguration) {
     	return () -> {
@@ -86,7 +86,7 @@ public class XdsSpringContext {
      * @param fhirClient
      * @return
      */
-    @ConditionalOnProperty(value = "fhir.server.profile.bootstrap", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(prefix="fhir.server.profile", value = "bootstrap", havingValue = "true", matchIfMissing = true)
     @Bean
     SmartInitializingSingleton createProfilesIfNeeded(IGenericClient fhirClient) {
         return () -> {
