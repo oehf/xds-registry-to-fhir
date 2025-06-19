@@ -29,7 +29,6 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.LocalizedString;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.PatientInfo;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.ReferenceId;
-import org.openehealth.ipf.commons.map.BidiMappingService;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -39,7 +38,6 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
 
     private static final String HL7V2FHIR_PATIENT_GENDER = "hl7v2fhir-patient-gender";
     private final RegistryConfiguration registryConfig;
-    private final BidiMappingService hl7v2FhirMapping;
 
     @Override
     public DocumentEntry apply(final DocumentReference fhirDoc) {
@@ -103,7 +101,7 @@ public class FhirToXdsDocumentMapper extends AbstractFhirToXdsMapper
         if (sourcePatientInfo.getResource() instanceof Patient sourcePatientFhirResource) {
             PatientInfo patientInfo = new PatientInfo();
             if (sourcePatientFhirResource.getGender() != null) {
-                patientInfo.setGender((String) hl7v2FhirMapping.get(HL7V2FHIR_PATIENT_GENDER,
+                patientInfo.setGender((String) fhirMapping.get(HL7V2FHIR_PATIENT_GENDER,
                         sourcePatientFhirResource.getGender().toString().toLowerCase()));
             }
             sourcePatientFhirResource.getName().stream().forEach(name -> patientInfo.getNames().add(mapName(name)));

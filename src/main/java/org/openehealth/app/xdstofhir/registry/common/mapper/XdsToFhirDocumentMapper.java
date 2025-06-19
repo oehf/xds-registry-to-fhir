@@ -11,13 +11,13 @@ import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.app.xdstofhir.registry.common.RegistryConfiguration;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
-import org.openehealth.ipf.commons.map.BidiMappingService;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.function.BiFunction;
 
 import static java.util.Collections.singletonList;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.EMPTY_NARRATIVE;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.MHD_COMPREHENSIVE_PROFILE;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
 import static org.openehealth.ipf.commons.ihe.xds.core.metadata.AvailabilityStatus.APPROVED;
@@ -29,7 +29,6 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
 
     private static final String HL7V2FHIR_PATIENT_ADMINISTRATIVE_GENDER = "hl7v2fhir-patient-administrativeGender";
     private final RegistryConfiguration registryConfig;
-    private final BidiMappingService hl7v2FhirMapping;
 
     @Override
     public DocumentReference apply(final DocumentEntry xdsDoc, List<DocumentReferenceRelatesToComponent> documentReferences) {
@@ -85,6 +84,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
         }
         mapServicePeriod(xdsDoc, fhirDoc);
         fhirDoc.setRelatesTo(documentReferences);
+        fhirDoc.setText(EMPTY_NARRATIVE);
         return fhirDoc;
     }
 
@@ -109,7 +109,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
 
     private Patient fromSourcePatientInfo(PatientInfo sourcePatientInfo) {
         var fhirSourcePatient = new Patient();
-        fhirSourcePatient.setGender(AdministrativeGender.fromCode((String) hl7v2FhirMapping
+        fhirSourcePatient.setGender(AdministrativeGender.fromCode((String) fhirMapping
                 .get(HL7V2FHIR_PATIENT_ADMINISTRATIVE_GENDER, sourcePatientInfo.getGender())));
         sourcePatientInfo.getNames().forEachRemaining(name -> fhirSourcePatient.addName(fromName(name)));
         if (sourcePatientInfo.getDateOfBirth() != null) {
@@ -117,6 +117,7 @@ public class XdsToFhirDocumentMapper extends AbstractXdsToFhirMapper
             fhirSourcePatient.setBirthDateElement(new DateType(birthTimeConverted.getValue(), birthTimeConverted.getPrecision()));
         }
         sourcePatientInfo.getAddresses().forEachRemaining(address -> fhirSourcePatient.addAddress(fromAddress(address)));
+        fhirSourcePatient.setText(EMPTY_NARRATIVE);
         return fhirSourcePatient;
     }
 

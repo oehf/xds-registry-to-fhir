@@ -1,5 +1,6 @@
 package org.openehealth.app.xdstofhir.registry.common;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -9,8 +10,13 @@ import java.util.stream.Collectors;
 
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import lombok.experimental.UtilityClass;
+
+import org.hl7.fhir.r4.model.Narrative;
 import org.hl7.fhir.r4.model.DocumentReference.DocumentRelationshipType;
+import org.hl7.fhir.r4.model.Narrative.NarrativeStatus;
 import org.hl7.fhir.r4.model.codesystems.DocumentReferenceStatus;
+import org.hl7.fhir.utilities.xhtml.NodeType;
+import org.hl7.fhir.utilities.xhtml.XhtmlNode;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.Oid;
 import org.openehealth.ipf.commons.core.URN;
@@ -28,7 +34,9 @@ public class MappingSupport {
     public static final String MHD_COMPREHENSIVE_SUBMISSIONSET_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet";
     public static final String MHD_COMPREHENSIVE_FOLDER_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.Folder";
     public static final String MHD_COMPREHENSIVE_PROVIDE_PROFILE = "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.ProvideBundle";
-
+	
+	public static final Narrative EMPTY_NARRATIVE = new Narrative().setStatus(NarrativeStatus.EMPTY).setDiv(new XhtmlNode(NodeType.Element, "div").setValue("empty"));
+    
     public static final Map<Precision, TemporalPrecisionEnum> PRECISION_MAP_FROM_XDS = new EnumMap<>(
             Map.of(Precision.DAY, TemporalPrecisionEnum.DAY,
                     Precision.HOUR, TemporalPrecisionEnum.SECOND,
@@ -72,7 +80,14 @@ public class MappingSupport {
                     UUID.fromString(value);
                     adaptedValue = OID_URN + value;
                 } catch (IllegalArgumentException invalidUuid) {
-                    adaptedValue = XDS_URN + value;
+                	try {
+						var uri = new URI(value);
+						if (!uri.isAbsolute()) {
+							throw new URISyntaxException(value, "no absolute uri");
+						}
+					} catch (URISyntaxException e) {
+						adaptedValue = XDS_URN + value;
+					}
                 }
             }
         }

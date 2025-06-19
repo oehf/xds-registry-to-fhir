@@ -18,7 +18,9 @@ import org.openehealth.ipf.commons.ihe.xds.core.SampleData;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.AssigningAuthority;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Folder;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Identifiable;
+import org.openehealth.ipf.commons.spring.map.SpringBidiMappingService;
 import org.openehealth.ipf.commons.xml.XmlUtils;
+import org.springframework.core.io.ClassPathResource;
 
 class FolderMappingImplTest {
     private BiFunction<Folder, List<ListEntryComponent>, MhdFolder> xdsToFire;
@@ -26,8 +28,15 @@ class FolderMappingImplTest {
 
     @BeforeEach
     public void setupTestClass() {
-        xdsToFire = new XdsToFhirFolderMapper();
-        fireToXds = new FhirToXdsFolderMapper();
+        var mapService = new SpringBidiMappingService();
+        mapService.setMappingResource(new ClassPathResource("META-INF/map/fhir-hl7v2-translation.map"));
+        mapService.setMappingResource(new ClassPathResource("META-INF/map/codesystem-fhir-translation.map"));
+        var xds2Fhir = new XdsToFhirFolderMapper();
+        xds2Fhir.setFhirMapping(mapService);
+        var fhir2xds = new FhirToXdsFolderMapper();
+        fhir2xds.setFhirMapping(mapService);
+        xdsToFire = xds2Fhir;
+        fireToXds = fhir2xds;
     }
 
     @Test

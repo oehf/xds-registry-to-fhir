@@ -1,5 +1,6 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.EMPTY_NARRATIVE;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 
 import java.util.function.Function;
@@ -31,6 +32,7 @@ public class Hl7ToFhirPatientMapper  implements Function<Terser, Patient> {
         humanName.setFamily(patientFamiliyName);
         humanName.addGiven(patientFirstName);
         patient.addName(humanName);
+        patient.setText(EMPTY_NARRATIVE);
         return patient;
     }
 

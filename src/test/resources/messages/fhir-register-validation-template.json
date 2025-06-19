@@ -11,9 +11,17 @@
         "meta" : {
           "profile" : [ "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.DocumentReference" ]
         },
+		"text" : {
+			"status" : "empty",
+			"div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		},
         "contained" : [ {
           "resourceType" : "PractitionerRole",
           "id" : "${json-unit.any-string}",
+		  "text" : {
+			  "status" : "empty",
+			  "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		  },
           "practitioner" : {
             "reference" : "${json-unit.any-string}"
           },
@@ -43,6 +51,10 @@
         }, {
           "resourceType" : "Practitioner",
           "id" : "${json-unit.any-string}",
+		  "text" : {
+			  "status" : "empty",
+			  "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		  },
           "identifier" : [ {
             "system" : "urn:oid:1.2",
             "value" : "id2"
@@ -74,6 +86,10 @@
         }, {
           "resourceType" : "Patient",
           "id" : "${json-unit.any-string}",
+		  "text" : {
+			  "status" : "empty",
+			  "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		  },
           "name" : [ {
             "family" : "Susi"
           } ],
@@ -211,6 +227,10 @@
         "meta" : {
           "profile" : [ "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.Folder" ]
         },
+		"text" : {
+			"status" : "empty",
+			"div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		},
         "extension" : [ {
           "url" : "https://profiles.ihe.net/ITI/MHD/StructureDefinition/ihe-designationType",
           "valueCodeableConcept" : {
@@ -276,15 +296,27 @@
         "meta" : {
           "profile" : [ "https://profiles.ihe.net/ITI/MHD/StructureDefinition/IHE.MHD.Comprehensive.SubmissionSet" ]
         },
+		"text" : {
+			"status" : "empty",
+			"div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		},
         "contained" : [ {
           "resourceType" : "PractitionerRole",
           "id" : "${json-unit.any-string}",
+		  "text" : {
+			  "status" : "empty",
+			  "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		  },
           "practitioner" : {
             "reference" : "${json-unit.any-string}"
           }
         }, {
           "resourceType" : "Practitioner",
           "id" : "${json-unit.any-string}",
+		  "text" : {
+			  "status" : "empty",
+			  "div" : "<div xmlns=\"http://www.w3.org/1999/xhtml\">empty</div>"
+		  },
           "identifier" : [ {
             "system" : "urn:oid:1.1",
             "value" : "id1"

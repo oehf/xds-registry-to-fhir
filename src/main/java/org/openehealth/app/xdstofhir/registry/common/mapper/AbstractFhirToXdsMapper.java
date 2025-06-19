@@ -7,6 +7,10 @@ import org.openehealth.ipf.commons.ihe.xds.core.metadata.Organization;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.Person;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
 import org.openehealth.ipf.commons.ihe.xds.core.validate.OIDValidator;
+import org.openehealth.ipf.commons.map.BidiMappingService;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import lombok.Setter;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -16,7 +20,11 @@ import java.util.Optional;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.urnDecodedScheme;
 
 public abstract class AbstractFhirToXdsMapper {
-
+	
+	@Autowired
+	@Setter
+	protected BidiMappingService fhirMapping;
+	
     protected Identifiable obtainIndexPatientId(Reference patientRef) {
         var ids = new ArrayList<Identifier>();
         var patientSubject = (Patient) patientRef.getResource();
@@ -44,7 +52,8 @@ public abstract class AbstractFhirToXdsMapper {
     }
 
     protected Code fromCode(Coding code) {
-        return new Code(code.getCode(), new LocalizedString(code.getDisplay()), urnDecodedScheme(code.getSystem()));
+        Object object = fhirMapping != null ? fhirMapping.get("fhir2XdsCodesystemMapping", code.getSystem()) : code.getSystem();
+		return new Code(code.getCode(), new LocalizedString(code.getDisplay()), urnDecodedScheme(object.toString()));
     }
 
     protected Author fromAuthor(Reference author) {

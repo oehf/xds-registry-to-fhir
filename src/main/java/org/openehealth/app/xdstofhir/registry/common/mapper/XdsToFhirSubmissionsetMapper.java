@@ -1,5 +1,7 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.EMPTY_NARRATIVE;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -40,6 +42,7 @@ public class XdsToFhirSubmissionsetMapper extends AbstractXdsToFhirMapper
             mhdList.setNote(Collections.singletonList(annotation));
         }
         mhdList.setEntry(references);
+        mhdList.setText(EMPTY_NARRATIVE);
         return mhdList;
     }
 

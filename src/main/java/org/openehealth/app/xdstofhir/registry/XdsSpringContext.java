@@ -2,12 +2,16 @@ package org.openehealth.app.xdstofhir.registry;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
+import ca.uhn.fhir.rest.server.exceptions.UnprocessableEntityException;
 import ca.uhn.fhir.util.BundleBuilder;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
 import org.apache.cxf.bus.spring.SpringBus;
@@ -28,12 +32,13 @@ import static org.openehealth.app.xdstofhir.registry.common.Wss4jConfigurator.cr
 import static org.openehealth.app.xdstofhir.registry.common.Wss4jConfigurator.createWss4jProperties;
 
 @Configuration
+@Slf4j
 public class XdsSpringContext {
 
     @Value("classpath*:profiles/*.json")
     private Resource[] profiles;
-    @Value("classpath:META-INF/map/fhir-hl7v2-translation.map")
-    private Resource hl7v2fhirMapping;
+    @Value("classpath*:META-INF/map/*.map")
+    private Resource[] fhirMappings;
 
     @Bean(name = Bus.DEFAULT_BUS_ID)
     SpringBus springBus() {
@@ -66,7 +71,7 @@ public class XdsSpringContext {
     @Bean
     CustomMappings customMapping() {
         var mapping = new CustomMappings();
-        mapping.setMappingResource(hl7v2fhirMapping);
+        mapping.setMappingResources(List.of(fhirMappings));
         return mapping;
     }
     
@@ -95,7 +100,9 @@ public class XdsSpringContext {
             for (var profile : profiles) {
                 try (InputStream inputStream = profile.getInputStream()) {
                     builder.addTransactionUpdateEntry(fhirParser.parseResource(inputStream));
-                } catch (IOException e) {
+                } catch (UnprocessableEntityException e) {
+                	log.warn("not working: {}", profile, e);
+                }catch (IOException e) {
                     throw new IllegalStateException("MHD Profile definition shall be present");
                 }
             }

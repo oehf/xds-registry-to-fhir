@@ -53,9 +53,13 @@ class RegisterDocumentsProcessorTest extends AbstractFhirMockserver {
         registryConfig.setUnknownRepositoryId("2.999.1.2.3");
         var mappingService = new SpringBidiMappingService();
         mappingService.setMappingResource(new ClassPathResource("META-INF/map/fhir-hl7v2-translation.map"));
-        var documentMapper = new XdsToFhirDocumentMapper(registryConfig, mappingService);
+        mappingService.setMappingResource(new ClassPathResource("META-INF/map/codesystem-fhir-translation.map"));
+        var documentMapper = new XdsToFhirDocumentMapper(registryConfig);
+        documentMapper.setFhirMapping(mappingService);
         var submissionSetMapper = new XdsToFhirSubmissionsetMapper();
+        submissionSetMapper.setFhirMapping(mappingService);
         var folderMapper = new XdsToFhirFolderMapper();
+        folderMapper.setFhirMapping(mappingService);
 
         classUnderTest = new RegisterDocumentsProcessor(newRestfulGenericClient, documentMapper, submissionSetMapper,
                 folderMapper, registryConfig);

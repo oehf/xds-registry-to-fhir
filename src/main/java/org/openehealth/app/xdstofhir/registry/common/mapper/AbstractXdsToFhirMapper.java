@@ -1,6 +1,7 @@
 package org.openehealth.app.xdstofhir.registry.common.mapper;
 
 import static java.util.Collections.singletonList;
+import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.EMPTY_NARRATIVE;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.OID_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.URI_URN;
 import static org.openehealth.app.xdstofhir.registry.common.MappingSupport.toUrnCoded;
@@ -23,8 +24,16 @@ import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.StringType;
 import org.openehealth.app.xdstofhir.registry.common.MappingSupport;
 import org.openehealth.ipf.commons.ihe.xds.core.metadata.*;
+import org.openehealth.ipf.commons.map.BidiMappingService;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import lombok.Setter;
 
 public abstract class AbstractXdsToFhirMapper {
+	
+	@Autowired
+	@Setter
+	protected BidiMappingService fhirMapping;
 
     protected Reference patientReferenceFrom(XDSMetaClass xdsObject) {
         var patientReference = new Reference(new IdType(Patient.class.getSimpleName(), xdsObject.getPatientId().getId()));
@@ -65,12 +74,14 @@ public abstract class AbstractXdsToFhirMapper {
     }
 
     protected Coding map(final Code code) {
-        return new Coding(toUrnCoded(code.getSchemeName()), code.getCode(), code.getDisplayName().getValue());
+        return new Coding(toUrnCoded(fhirMapping.get("xds2FhirCodesystemMapping", code.getSchemeName()).toString()), code.getCode(), code.getDisplayName().getValue());
     }
 
     protected Reference fromAuthor(final Author author) {
         var role = new PractitionerRole();
+        role.setText(EMPTY_NARRATIVE);
         var doc = new Practitioner();
+        doc.setText(EMPTY_NARRATIVE);
         if (author.getAuthorPerson() != null && !author.getAuthorPerson().isEmpty()) {
             if (!author.getAuthorPerson().getName().isEmpty())
                 doc.setName(singletonList(fromName(author.getAuthorPerson().getName())));

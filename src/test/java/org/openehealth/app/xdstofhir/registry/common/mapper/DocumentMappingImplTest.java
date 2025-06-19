@@ -40,8 +40,13 @@ class DocumentMappingImplTest {
         config.setUnknownRepositoryId("2.999.1.2.3");
         var mapService = new SpringBidiMappingService();
         mapService.setMappingResource(new ClassPathResource("META-INF/map/fhir-hl7v2-translation.map"));
-        xdsToFire = new XdsToFhirDocumentMapper(config, mapService);
-        fireToXds = new FhirToXdsDocumentMapper(config, mapService);
+        mapService.setMappingResource(new ClassPathResource("META-INF/map/codesystem-fhir-translation.map"));
+        var xdsDocMapper = new XdsToFhirDocumentMapper(config);
+        xdsDocMapper.setFhirMapping(mapService);
+        xdsToFire = xdsDocMapper;
+        var fhir2xdsMapper = new FhirToXdsDocumentMapper(config);
+        fhir2xdsMapper.setFhirMapping(mapService);
+        fireToXds = fhir2xdsMapper;
     }
 
     @Test

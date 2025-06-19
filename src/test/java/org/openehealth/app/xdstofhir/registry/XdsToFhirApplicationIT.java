@@ -134,6 +134,7 @@ class XdsToFhirApplicationIT {
         patientIdentityFeed.registerPatient(somePatientFromMPI(patientId));
 
         var doc = SampleData.createDocumentEntry(patientId);
+        doc.setSourcePatientId(new Identifiable("source", new AssigningAuthority("2.999.1.2")));
         doc.assignEntryUuid();
         var sub = SampleData.createSubmissionSet(patientId);
         sub.assignEntryUuid();
@@ -203,6 +204,7 @@ class XdsToFhirApplicationIT {
     private void registerSampleDocForPatient(Identifiable patientId) {
         var register = SampleData.createRegisterDocumentSet();
         register.getDocumentEntries().forEach(doc -> doc.setPatientId(patientId));
+        register.getDocumentEntries().forEach(doc -> doc.setSourcePatientId(new Identifiable("source", new AssigningAuthority("2.999.1.2"))));
         register.getFolders().forEach(doc -> doc.setPatientId(patientId));
         register.getSubmissionSet().setPatientId(patientId);
         registerDocuments.processRegister(register);
