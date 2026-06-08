@@ -1,6 +1,28 @@
 version: 2
 updates:
+  # 1. GitHub Actions weiterhin wöchentlich zusammengefasst
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      action-updates:
+        patterns:
+          - "*"
+
+  # 2. Maven-Konfiguration für ausschließlich direkte Minor- & Patch-Updates
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    
+    # Ignoriere alle Major-Updates für alle Abhängigkeiten
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+    # Zusammenfassung der erlaubten Minor- & Patch-Updates in einem PR
+    groups:
+      maven-updates:
+        patterns:
+          - "*"
