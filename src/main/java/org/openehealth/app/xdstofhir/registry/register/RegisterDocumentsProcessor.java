@@ -58,6 +58,15 @@ import org.openehealth.ipf.commons.ihe.xds.core.validate.ValidationMessage;
 import org.openehealth.ipf.commons.ihe.xds.core.validate.XDSMetaDataException;
 import org.springframework.stereotype.Component;
 
+/**
+ * ITI-42 and ITI-61 registry processor implementation.
+ * 
+ * Handles document registration and on-demand document registration, converting XDS metadata
+ * to FHIR MHD resources and storing them in a FHIR server backend.
+ * 
+ * @see <a href="https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html">ITI-42 Specification</a>
+ * @see <a href="https://profiles.ihe.net/ITI/TF/Volume2/ITI-61.html">ITI-61 Specification</a>
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -68,82 +77,110 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     private final BiFunction<Folder, List<ListEntryComponent>, MhdFolder> folderMapper;
     private final RegistryConfiguration registryConfig;
 
-
+    /**
+     * Process document registration (ITI-42).
+     * 
+     * This method:
+     * 1. Validates the repository configuration
+     * 2. Validates document resubmission rules
+     * 3. Assigns registry-generated values (UUIDs, availability status)
+     * 4. Resolves patient identifiers from the FHIR server
+     * 5. Handles document replacement scenarios
+     * 6. Creates a transaction bundle and executes it atomically
+     * 
+     * @param register the registration request containing documents, submissions sets, and folder metadata
+     * @return Response with SUCCESS status or error details
+     * @throws XDSMetaDataException if validation fails or references cannot be resolved
+     */
     @Override
     public Response processRegister(RegisterDocumentSet register) {
-        validateKnownRepository(register);
-        register.getDocumentEntries().forEach(this::validateResubmission);
-        register.getDocumentEntries().forEach(doc -> assignRegistryValues(doc, register.getAssociations()));
-        register.getDocumentEntries().forEach(this::assignPatientId);
-        register.getFolders().forEach(folder -> assignRegistryValues(folder, register.getAssociations()));
-        register.getFolders().forEach(this::assignPatientId);
-        assignPatientId(register.getSubmissionSet());
-        assignRegistryValues(register.getSubmissionSet(), register.getAssociations());
-        assignRegistryValues(register.getAssociations());
-        var builder = new BundleBuilder(client.getFhirContext());
-        evaluateDocumentReplacement(register, builder);
-        builder.setMetaField("profile", new CanonicalType(MappingSupport.MHD_COMPREHENSIVE_PROVIDE_PROFILE));
+        try {
+            log.debug("Starting document registration with {} documents, {} folders, {} associations",
+                    register.getDocumentEntries().size(), register.getFolders().size(), 
+                    register.getAssociations().size());
+            
+            validateKnownRepository(register);
+            register.getDocumentEntries().forEach(this::validateResubmission);
+            register.getDocumentEntries().forEach(doc -> assignRegistryValues(doc, register.getAssociations()));
+            register.getDocumentEntries().forEach(this::assignPatientId);
+            register.getFolders().forEach(folder -> assignRegistryValues(folder, register.getAssociations()));
+            register.getFolders().forEach(this::assignPatientId);
+            assignPatientId(register.getSubmissionSet());
+            assignRegistryValues(register.getSubmissionSet(), register.getAssociations());
+            assignRegistryValues(register.getAssociations());
+            
+            var builder = new BundleBuilder(client.getFhirContext());
+            evaluateDocumentReplacement(register, builder);
+            builder.setMetaField("profile", new CanonicalType(MappingSupport.MHD_COMPREHENSIVE_PROVIDE_PROFILE));
 
-        var docReferences = createDocToDocReferences(register.getAssociations());
+            var docReferences = createDocToDocReferences(register.getAssociations());
+            register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc, docReferences)));
 
-        register.getDocumentEntries().forEach(doc -> builder.addTransactionCreateEntry(documentMapper.apply(doc, docReferences)));
+            var documentMap = register.getDocumentEntries().stream()
+                    .collect(Collectors.toMap(DocumentEntry::getEntryUuid, Function.identity()));
 
-        var documentMap = register.getDocumentEntries().stream()
-                .collect(Collectors.toMap(DocumentEntry::getEntryUuid, Function.identity()));
+            var folderAssociations = register.getAssociations().stream()
+                    .filter(assoc -> !assoc.getSourceUuid().equals(register.getSubmissionSet().getEntryUuid()))
+                    .filter(assoc -> AssociationType.HAS_MEMBER.equals(assoc.getAssociationType()))
+                    .toList();
 
-        var folderAssociations = register.getAssociations().stream()
-                .filter(assoc -> !assoc.getSourceUuid().equals(register.getSubmissionSet().getEntryUuid()))
-                .filter(assoc -> AssociationType.HAS_MEMBER.equals(assoc.getAssociationType()))
-                .toList();
+            var folderUuids = register.getFolders().stream().map(XDSMetaClass::getEntryUuid).toList();
+            var externalFolderUuid = folderAssociations.stream().map(Association::getSourceUuid)
+                    .filter(folderId -> !folderUuids.contains(folderId)).toList();
+            createUpdateOfExistingFolders(externalFolderUuid, folderAssociations, documentMap)
+                    .forEach(builder::addTransactionUpdateEntry);
 
-        var folderUuids = register.getFolders().stream().map(XDSMetaClass::getEntryUuid).toList();
-        var externalFolderUuid = folderAssociations.stream().map(Association::getSourceUuid).filter(folderId -> !folderUuids.contains(folderId)).toList();
-        createUpdateOfExistingFolders(externalFolderUuid, folderAssociations, documentMap).forEach(builder::addTransactionUpdateEntry);
+            var folderReferences = createReferences(folderAssociations, documentMap, folderUuids);
+            register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder, folderReferences)));
 
-        var folderReferences = createReferences(folderAssociations, documentMap, folderUuids);
-        register.getFolders().forEach(folder -> builder.addTransactionCreateEntry(folderMapper.apply(folder, folderReferences)));
+            var submissionReferences = new ArrayList<ListEntryComponent>(createReferences(register.getAssociations(), documentMap,
+                    Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
+            var folderMap = register.getFolders().stream()
+                    .collect(Collectors.toMap(Folder::getEntryUuid, Function.identity()));
+            submissionReferences.addAll(createReferences(register.getAssociations(), folderMap,
+                    Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
+            submissionReferences.addAll(createReferences(register.getAssociations(),
+                    Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
+            builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet(), submissionReferences));
 
-        var submissionReferences = new ArrayList<ListEntryComponent>(createReferences(register.getAssociations(), documentMap,
-                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
-        var folderMap = register.getFolders().stream()
-                .collect(Collectors.toMap(Folder::getEntryUuid, Function.identity()));
-        submissionReferences.addAll(createReferences(register.getAssociations(), folderMap,
-                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
-        submissionReferences.addAll(createReferences(register.getAssociations(),
-                Collections.singletonList(register.getSubmissionSet().getEntryUuid())));
-        builder.addTransactionCreateEntry(submissionSetMapper.apply(register.getSubmissionSet(), submissionReferences));
+            // Execute the transaction atomically
+            client.transaction().withBundle(builder.getBundle()).execute();
+            log.info("Document registration successful");
 
-        // Execute the transaction
-        client.transaction().withBundle(builder.getBundle()).execute();
+            var response = new Response(Status.SUCCESS);
+            addWarningForExtraMetadataIfPresent(register, response);
 
-        var response = new Response(Status.SUCCESS);
-
-        addWarningForExtraMetadataIfPresent(register, response);
-
-        return response;
+            return response;
+        } catch (Exception e) {
+            log.error("Error processing document registration", e);
+            throw e;
+        }
     }
 
     /**
-     * This registry implementation currently do not store extra-metadata. Notify with a client warning that no
-     * extra metadata is being stored.
+     * Adds a warning to the response if extra metadata is present in the registration.
+     * 
+     * Currently, extra metadata is not supported by this implementation.
      *
-     * @param register
-     * @param response
+     * @param register the registration request
+     * @param response the response object to add the warning to
      */
     private void addWarningForExtraMetadataIfPresent(RegisterDocumentSet register, Response response) {
         if (register.getDocumentEntries().stream()
                 .anyMatch(doc -> doc.getExtraMetadata() != null && !doc.getExtraMetadata().isEmpty())) {
             response.getErrors().add(new ErrorInfo(ErrorCode.EXTRA_METADATA_NOT_SAVED,
-                    "Register do not yet support storing extra metadata", Severity.WARNING, null, null));
+                    "Register does not yet support storing extra metadata", Severity.WARNING, null, null));
+            log.warn("Extra metadata detected but not saved as it is not yet supported");
         }
     }
 
     /**
-     * Validate the resubmission preconditions:
-     * - entryUUID shall not be used before (in case client use a UUID based id)
-     * - same uniqueid is only allowed if hash and size is the same as the existing document.
+     * Validates resubmission preconditions per IHE specification:
+     * - entryUUID shall not be used before (for UUID-based IDs)
+     * - Same uniqueId is only allowed if hash and size match existing document
      *
-     * @param doc
+     * @param doc the document entry to validate
+     * @throws XDSMetaDataException if validation fails
      */
     private void validateResubmission(DocumentEntry doc) {
         DocumentReference existingDoc;
@@ -154,8 +191,10 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
                 existingDoc = lookupExistingDocument(MappingSupport.toUrnCoded(doc.getUniqueId()));
             }
         } catch (XDSMetaDataException notPresent) {
+            // Document does not exist, resubmission is allowed
             return;
         }
+        
         metaDataAssert(existingDoc.getIdentifier().stream().filter(id -> id.getValue().equals(doc.getEntryUuid()))
                 .findAny().isEmpty(), ValidationMessage.UUID_NOT_UNIQUE);
         metaDataAssert(
@@ -166,12 +205,12 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
     /**
-     * Update an existing folder and add a link to a document.
+     * Updates existing folders and adds references to newly registered documents.
      *
-     * @param externalFolderUuid
-     * @param folderAssociations
-     * @param documentMap
-     * @return a list of folder objects that need to be updated.
+     * @param externalFolderUuid list of folder UUIDs not in current submission
+     * @param folderAssociations associations linking folders to documents
+     * @param documentMap map of document entries by UUID
+     * @return list of folders that need to be updated
      */
     private List<MhdFolder> createUpdateOfExistingFolders(List<String> externalFolderUuid,
             List<Association> folderAssociations, Map<String, DocumentEntry> documentMap) {
@@ -202,11 +241,11 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
     /**
-     * lookup an existing folder in the FHIR server. In case this folder do not exists, throw a XDS metadata exception to
-     * reject the transaction.
+     * Lookup an existing folder in the FHIR server.
      *
-     * @param entryUuid
-     * @return The folder associated with the given uuid.
+     * @param entryUuid the folder's entry UUID
+     * @return the MHD folder associated with the UUID
+     * @throws XDSMetaDataException if folder is not found
      */
     private MhdFolder lookupExistingFolder(String entryUuid) {
         var result = client.search().forResource(MhdFolder.class).count(1)
@@ -217,6 +256,12 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
 
+    /**
+     * Creates document-to-document relationships for supported association types.
+     *
+     * @param associations the list of associations
+     * @return list of FHIR document relationship components
+     */
     private List<DocumentReferenceRelatesToComponent> createDocToDocReferences(List<Association> associations) {
         return associations.stream()
                 .filter(assoc -> DOC_DOC_FHIR_ASSOCIATIONS.containsKey(assoc.getAssociationType()))
@@ -234,6 +279,17 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
 
+    /**
+     * Evaluates and processes document replacement scenarios per ITI-42 specification.
+     * 
+     * When a document replacement association is detected:
+     * - The new document is mapped
+     * - The previous document status is set to SUPERSEDED
+     * - Folder associations are transferred to the new document
+     *
+     * @param register the registration request
+     * @param builder the FHIR bundle builder
+     */
     private void evaluateDocumentReplacement(RegisterDocumentSet register, BundleBuilder builder) {
         register.getAssociations().stream().filter(assoc -> assoc.getAssociationType() == AssociationType.REPLACE)
                 .forEach(assoc -> {
@@ -244,19 +300,20 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
                                     assoc.getSourceUuid()));
                     var replacePreviousDocument = replacePreviousDocument(assoc.getTargetUuid(),
                             replacingDoc);
-                    replaceFolderAssocations(replacePreviousDocument, replacingDoc).forEach(builder::addTransactionUpdateEntry);
+                    replaceFolderAssociations(replacePreviousDocument, replacingDoc).forEach(builder::addTransactionUpdateEntry);
                     builder.addTransactionUpdateEntry(replacePreviousDocument);
+                    log.debug("Document replacement processed for entry UUID: {}", assoc.getTargetUuid());
                 });
     }
 
     /**
-     * Takeover folder relationsship from replaced document to the new document.
+     * Transfers folder associations from the replaced document to the replacing document.
      *
-     * @param replacePreviousDocument
-     * @param replacingDoc
-     * @return Folders to update.
+     * @param replacePreviousDocument the document being replaced
+     * @param replacingDoc the new document
+     * @return list of folders that need to be updated
      */
-    private List<MhdFolder> replaceFolderAssocations(DocumentReference replacePreviousDocument,
+    private List<MhdFolder> replaceFolderAssociations(DocumentReference replacePreviousDocument,
             DocumentReference replacingDoc) {
         var folderResult = client.search().forResource(MhdFolder.class)
                 .withProfile(MappingSupport.MHD_COMPREHENSIVE_FOLDER_PROFILE)
@@ -273,13 +330,12 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
     /**
-     * Build the references for the given assocations, where the sourceId is ony of sourceId and the target is one of the docs from the
-     * documentMap.
+     * Builds references for the given associations where the source matches the provided list.
      *
-     * @param associations
-     * @param xdsObjectMap
-     * @param sourceId
-     * @return the List of FHIR references.
+     * @param associations the list of associations
+     * @param xdsObjectMap map of XDS objects by UUID
+     * @param sourceId list of source UUIDs to match
+     * @return the list of FHIR list entry components representing references
      */
     private List<ListEntryComponent> createReferences(List<Association> associations, Map<String, ? extends XDSMetaClass> xdsObjectMap,
             List<String> sourceId) {
@@ -295,6 +351,13 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
                 .toList();
     }
 
+    /**
+     * Creates a reference to an XDS object.
+     *
+     * @param assoc the association
+     * @param refType the FHIR resource type
+     * @return the list entry component containing the reference
+     */
     private ListEntryComponent createReference(Association assoc, String refType) {
         var item = new Reference(
                 new IdType(refType, assoc.getTargetUuid()));
@@ -308,6 +371,13 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
         return ref;
     }
 
+    /**
+     * Creates references between associations.
+     *
+     * @param associations the list of associations
+     * @param sourceId list of source UUIDs to match
+     * @return the list of FHIR list entry components
+     */
     private List<ListEntryComponent> createReferences(List<Association> associations,
             List<String> sourceId) {
         var associationMap = associations.stream()
@@ -319,6 +389,12 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
                 .toList();
     }
 
+    /**
+     * Creates a reference to an association.
+     *
+     * @param assoc the association
+     * @return the list entry component containing the reference
+     */
     private ListEntryComponent createReference(Association assoc) {
         var ref = new Reference();
         var id = new Identifier();
@@ -335,9 +411,10 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     /**
      * Perform replace according to https://profiles.ihe.net/ITI/TF/Volume2/ITI-42.html#3.42.4.1.3.5
      *
-     * @param entryUuid
-     * @param replacingDocument
+     * @param entryUuid the UUID of the document to be replaced
+     * @param replacingDocument the new document
      * @return Replaced document with status set to superseded
+     * @throws XDSMetaDataException if validation fails
      */
     private DocumentReference replacePreviousDocument(String entryUuid, DocumentReference replacingDocument) {
         var replacedDocument = lookupExistingDocument(entryUuid);
@@ -353,6 +430,13 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
     }
 
 
+    /**
+     * Lookup an existing document in the FHIR server by identifiers.
+     *
+     * @param ids the document identifiers (UUIDs or unique IDs)
+     * @return the DocumentReference
+     * @throws XDSMetaDataException if document is not found
+     */
     private DocumentReference lookupExistingDocument(String... ids) {
         var result = client.search().forResource(DocumentReference.class).count(1)
                 .where(DocumentReference.IDENTIFIER.exactly().systemAndValues(URI_URN, ids))
@@ -362,6 +446,12 @@ public class RegisterDocumentsProcessor implements Iti42Service, Iti61Service {
         return (DocumentReference)result.getEntryFirstRep().getResource();
     }
 
+    /**
+     * Validates that all repositories referenced in the registration are known.
+     *
+     * @param register the registration request
+     * @throws XDSMetaDataException if an unknown repository is referenced
+     */
     private void validateKnownRepository(RegisterDocumentSet register) {
         register.getDocumentEntries()
                 .forEach(doc -> metaDataAssert(
