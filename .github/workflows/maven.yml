@@ -32,7 +32,7 @@ jobs:
     - name: Integration Tests with Maven
       run: mvn failsafe:integration-test -Pit-tests --file pom.xml
     - name: Submit Dependency Snapshot
-      uses: advanced-security/maven-dependency-submission-action@v3
+      uses: advanced-security/maven-dependency-submission-action@v5
       with:
         ignore-maven-wrapper: true
     - name: Set up Docker Buildx
