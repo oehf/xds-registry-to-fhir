@@ -4,6 +4,7 @@ import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FetchQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDispensesQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByReferenceIdForMultiplePatientsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsByTitleQuery;
+import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsExcludeQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindDocumentsForMultiplePatientsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindFoldersForMultiplePatientsQuery;
 import org.openehealth.ipf.commons.ihe.xds.core.requests.query.FindMedicationAdministrationsQuery;
@@ -77,6 +78,12 @@ public abstract class AbstractStoredQueryVisitor implements Visitor {
     public void visit(FindMedicationListQuery query) {
         throw new UnsupportedOperationException("Not yet supported");
     }
+    
+
+	@Override
+	public void visit(FindDocumentsExcludeQuery query) {
+		throw new UnsupportedOperationException("Not yet supported");
+	}
 
     @Override
     public void visit(FindDocumentsByTitleQuery query) {
