@@ -152,6 +152,17 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <image>
+                        <env>
+                            <!-- build time configurations-->
+                            <BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>
+                            <BP_SPRING_AOT_ENABLED>true</BP_SPRING_AOT_ENABLED>
+                            <!-- runtime configurations -->
+                            <BPL_JVM_THREAD_COUNT>30</BPL_JVM_THREAD_COUNT>
+                            <BPL_JVM_HEAD_ROOM>25</BPL_JVM_HEAD_ROOM>
+                            <JAVA_TOOL_OPTIONS>-Xmx128m -Xss256K -XX:ReservedCodeCacheSize=64M -XX:MaxMetaspaceSize=128m</JAVA_TOOL_OPTIONS>
+                        </env>
+                    </image>
                 </configuration>
                 <!-- 
                 Add build-info.properties to generated artifact
@@ -161,6 +172,12 @@
                     <execution>
                         <goals>
                             <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>process-aot</id>
+                        <goals>
+                            <goal>process-aot</goal>
                         </goals>
                     </execution>
                 </executions>
